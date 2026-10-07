@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>EmbeddingGemma Playground</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <header class="page-header">
+      <div class="wrap">
+        <h1>EmbeddingGemma Playground</h1>
+        <p class="lede">
+          <a href="https://huggingface.co/google/embeddinggemma-300m" target="_blank" rel="noopener">google/embeddinggemma-300m</a>
+          の ONNX 版をブラウザ内で実行します。入力したテキストは外部に送信されません。
+        </p>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="card model-card" aria-labelledby="model-heading">
+        <div class="card-head">
+          <h2 id="model-heading">モデル</h2>
+          <p id="model-status" class="status" data-state="idle" role="status">未読み込み</p>
+        </div>
+        <div class="controls">
+          <label class="field">
+            <span>精度</span>
+            <select id="dtype"></select>
+          </label>
+          <label class="field">
+            <span>実行環境</span>
+            <select id="device">
+              <option value="wasm">WASM（CPU）</option>
+              <option value="webgpu">WebGPU</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>スレッド数</span>
+            <select id="threads"></select>
+          </label>
+          <button id="load-button" class="button primary" type="button">モデルを読み込む</button>
+        </div>
+        <div class="progress" id="load-progress" hidden>
+          <div class="progress-track"><div class="progress-fill"></div></div>
+          <span class="progress-label"></span>
+        </div>
+        <dl class="facts" id="model-facts"></dl>
+        <p class="hint" id="env-hint"></p>
+      </section>
+
+      <div class="tabs" role="tablist" aria-label="デモの種類">
+        <button class="tab" role="tab" id="tab-search" aria-controls="panel-search" aria-selected="true" type="button">検索</button>
+        <button class="tab" role="tab" id="tab-similarity" aria-controls="panel-similarity" aria-selected="false" tabindex="-1" type="button">類似度マトリクス</button>
+        <button class="tab" role="tab" id="tab-benchmark" aria-controls="panel-benchmark" aria-selected="false" tabindex="-1" type="button">ミニベンチマーク</button>
+      </div>
+
+      <section class="card panel" id="panel-search" role="tabpanel" aria-labelledby="tab-search">
+        <p class="panel-intro">クエリに意味が近い文書を順位付けします。EmbeddingGemma はクエリと文書で別々のプロンプトを付けて埋め込みます。</p>
+        <div class="controls">
+          <label class="field">
+            <span>サンプル</span>
+            <select id="search-preset"></select>
+          </label>
+          <label class="field">
+            <span>タスク（プロンプト）</span>
+            <select id="search-task"></select>
+          </label>
+          <label class="field">
+            <span>次元</span>
+            <select id="search-dims" class="dims-select"></select>
+          </label>
+        </div>
+        <label class="field block">
+          <span>クエリ</span>
+          <input id="search-query" type="text" autocomplete="off" />
+        </label>
+        <label class="field block">
+          <span>文書（1行に1件）</span>
+          <textarea id="search-docs" rows="7" spellcheck="false"></textarea>
+        </label>
+        <div class="actions">
+          <button id="search-button" class="button primary needs-model" type="button" disabled>検索する</button>
+          <span class="run-note" id="search-note"></span>
+        </div>
+        <details class="prompt-preview">
+          <summary>実際にモデルへ渡す文字列</summary>
+          <pre id="search-prompt-preview"></pre>
+        </details>
+        <div id="search-results" class="results" data-testid="search-results" aria-live="polite"></div>
+      </section>
+
+      <section class="card panel" id="panel-similarity" role="tabpanel" aria-labelledby="tab-similarity" hidden>
+        <p class="panel-intro">すべての文の組み合わせのコサイン類似度です。同じ意味の文（日英をまたいでも）がまとまって濃く表示されれば成功です。</p>
+        <div class="controls">
+          <label class="field">
+            <span>タスク（プロンプト）</span>
+            <select id="similarity-task"></select>
+          </label>
+          <label class="field">
+            <span>次元</span>
+            <select id="similarity-dims" class="dims-select"></select>
+          </label>
+        </div>
+        <label class="field block">
+          <span>文（1行に1件、最大16件）</span>
+          <textarea id="similarity-sentences" rows="8" spellcheck="false"></textarea>
+        </label>
+        <div class="actions">
+          <button id="similarity-button" class="button primary needs-model" type="button" disabled>類似度を計算</button>
+          <span class="run-note" id="similarity-note"></span>
+        </div>
+        <div id="similarity-results" class="results" data-testid="similarity-results"></div>
+      </section>
+
+      <section class="card panel" id="panel-benchmark" role="tabpanel" aria-labelledby="tab-benchmark" hidden>
+        <p class="panel-intro" id="benchmark-intro">日英の小さな検索データセットで、正解文書を何位に出せるかと処理速度を測ります。</p>
+        <div class="controls">
+          <label class="field">
+            <span>バッチサイズ（文書）</span>
+            <select id="benchmark-batch">
+              <option value="1">1</option>
+              <option value="4">4</option>
+              <option value="8" selected>8</option>
+              <option value="16">16</option>
+            </select>
+          </label>
+        </div>
+        <div class="actions">
+          <button id="benchmark-button" class="button primary needs-model" type="button" disabled>ベンチマークを実行</button>
+          <button id="benchmark-download" class="button" type="button" hidden>結果をJSONで保存</button>
+          <span class="run-note" id="benchmark-note"></span>
+        </div>
+        <div class="progress" id="benchmark-progress" hidden>
+          <div class="progress-track"><div class="progress-fill"></div></div>
+          <span class="progress-label"></span>
+        </div>
+        <div id="benchmark-results" class="results" data-testid="benchmark-results"></div>
+      </section>
+    </main>
+
+    <footer class="wrap page-footer">
+      <p>
+        モデル: <a href="https://huggingface.co/onnx-community/embeddinggemma-300m-ONNX" target="_blank" rel="noopener">onnx-community/embeddinggemma-300m-ONNX</a>
+        （<a href="https://ai.google.dev/gemma/terms" target="_blank" rel="noopener">Gemma Terms of Use</a>）・
+        推論: <a href="https://huggingface.co/docs/transformers.js" target="_blank" rel="noopener">Transformers.js</a>
+      </p>
+    </footer>
+
+    <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+  </body>
+</html>

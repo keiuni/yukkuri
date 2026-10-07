@@ -1,0 +1,152 @@
+{
+  "name": "JA/EN mini retrieval set",
+  "version": 1,
+  "description": "13 topics of 4-5 short documents each. Every topic contains hard negatives (same subject, different fact), so a query has to be understood, not keyword-matched. Queries cover ja→ja, en→en and cross-lingual ja→en / en→ja retrieval. Hand-written for this demo; it is a sanity check, not a substitute for MTEB/JMTEB.",
+  "docs": [
+    { "id": "mt-fuji-height", "lang": "ja", "topic": "mountains", "text": "富士山は静岡県と山梨県にまたがる標高3776メートルの成層火山で、日本の最高峰である。" },
+    { "id": "mt-fuji-heritage", "lang": "ja", "topic": "mountains", "text": "富士山は2013年に「富士山－信仰の対象と芸術の源泉」としてユネスコの世界文化遺産に登録された。" },
+    { "id": "mt-kitadake", "lang": "ja", "topic": "mountains", "text": "南アルプスの北岳は標高3193メートルで、富士山に次いで日本で2番目に高い山である。" },
+    { "id": "mt-fuji-season", "lang": "ja", "topic": "mountains", "text": "富士山の一般的な登山シーズンは7月上旬から9月上旬までで、それ以外の時期は登山道が閉鎖される。" },
+    { "id": "mt-everest", "lang": "en", "topic": "mountains", "text": "Mount Everest, on the border between Nepal and China, is the highest mountain on Earth at about 8,849 meters above sea level." },
+
+    { "id": "cook-miso", "lang": "ja", "topic": "cooking", "text": "味噌汁はだしで具材を煮てから火を止め、最後に味噌を溶き入れる。味噌を入れた後に沸騰させると香りが飛んでしまう。" },
+    { "id": "cook-curry", "lang": "ja", "topic": "cooking", "text": "カレーは玉ねぎをあめ色になるまで炒めてから肉と野菜を加えて煮込み、火を止めてルウを溶かして仕上げる。" },
+    { "id": "cook-nikujaga", "lang": "ja", "topic": "cooking", "text": "肉じゃがは牛肉、じゃがいも、玉ねぎを醤油・砂糖・みりんで甘辛く煮た日本の家庭料理である。" },
+    { "id": "cook-sushi-rice", "lang": "en", "topic": "cooking", "text": "Sushi rice is seasoned with a mixture of rice vinegar, sugar, and salt while the rice is still warm." },
+    { "id": "cook-tempura", "lang": "en", "topic": "cooking", "text": "For crispy tempura, keep the batter ice-cold and mix it only lightly so that little gluten forms." },
+
+    { "id": "dev-js-sort", "lang": "ja", "topic": "programming", "text": "JavaScriptで数値の配列を昇順に並べ替えるには、sort() に比較関数 (a, b) => a - b を渡す。引数なしだと要素は文字列として比較される。" },
+    { "id": "dev-py-reverse", "lang": "ja", "topic": "programming", "text": "Pythonでリストを逆順にするには list.reverse() でその場で反転させるか、スライス [::-1] で新しいリストを作る。" },
+    { "id": "dev-git-amend", "lang": "ja", "topic": "programming", "text": "直前のコミットメッセージを修正したいときは git commit --amend を実行する。" },
+    { "id": "dev-git-branch-delete", "lang": "ja", "topic": "programming", "text": "Gitで不要になったブランチは git branch -d で削除できる。まだマージされていないブランチを強制的に消すには -D を使う。" },
+    { "id": "dev-docker-vm", "lang": "en", "topic": "programming", "text": "Containers share the host operating system's kernel, while virtual machines run a complete guest OS on top of a hypervisor." },
+
+    { "id": "health-heatstroke", "lang": "ja", "topic": "health", "text": "熱中症を防ぐには、のどが渇く前からこまめに水分と塩分を補給し、暑い時間帯の外出を避けることが大切である。" },
+    { "id": "health-hayfever", "lang": "ja", "topic": "health", "text": "花粉症はスギやヒノキなどの花粉に対するアレルギー反応で、くしゃみ、鼻水、目のかゆみなどを引き起こす。" },
+    { "id": "health-flu", "lang": "ja", "topic": "health", "text": "インフルエンザの予防には、流行前のワクチン接種、手洗い、十分な睡眠と栄養が有効とされる。" },
+    { "id": "health-exercise", "lang": "en", "topic": "health", "text": "Adults are generally advised to get at least 150 minutes of moderate-intensity aerobic activity every week." },
+    { "id": "health-sleep", "lang": "en", "topic": "health", "text": "Most adults need seven or more hours of sleep per night; regularly sleeping less is linked to health problems." },
+
+    { "id": "fin-nisa", "lang": "ja", "topic": "finance", "text": "NISAは少額投資非課税制度の略で、制度の枠内で投資して得た運用益や配当金に税金がかからない。" },
+    { "id": "fin-ideco", "lang": "ja", "topic": "finance", "text": "iDeCo（個人型確定拠出年金）は掛金が全額所得控除の対象になる一方、原則として60歳まで資産を引き出せない。" },
+    { "id": "fin-weak-yen", "lang": "ja", "topic": "finance", "text": "円安が進むと輸入品の価格が上がりやすくなる一方、海外で稼ぐ輸出企業の業績には追い風となることが多い。" },
+    { "id": "fin-inflation", "lang": "en", "topic": "finance", "text": "Inflation erodes purchasing power: as prices rise, each unit of currency buys fewer goods and services." },
+    { "id": "fin-compound", "lang": "en", "topic": "finance", "text": "Compound interest means you earn interest not only on your original deposit but also on the interest it has already earned." },
+
+    { "id": "anime-genga", "lang": "ja", "topic": "anime production", "text": "原画は、レイアウトをもとにキャラクターの動きの要所となるポーズを描く工程である。" },
+    { "id": "anime-douga", "lang": "ja", "topic": "anime production", "text": "動画は、原画と原画の間をつなぐ中割りを描き、線をきれいに清書する工程である。" },
+    { "id": "anime-retake", "lang": "ja", "topic": "anime production", "text": "リテイクとは、チェックで修正が必要と判断されたカットを差し戻して描き直すことである。" },
+    { "id": "anime-ekonte", "lang": "ja", "topic": "anime production", "text": "絵コンテは、カット割り、構図、セリフ、秒数などを示した、映像全体の設計図である。" },
+    { "id": "anime-compositing", "lang": "en", "topic": "anime production", "text": "In anime production, compositing combines the character cels, background art, and digital effects into the final frames." },
+
+    { "id": "travel-shinkansen", "lang": "ja", "topic": "travel", "text": "東京駅から新大阪駅までは、東海道新幹線「のぞみ」でおよそ2時間30分で移動できる。" },
+    { "id": "travel-narita", "lang": "ja", "topic": "travel", "text": "成田空港から東京駅までは、成田エクスプレスを使うとおよそ1時間で到着する。" },
+    { "id": "travel-jrpass", "lang": "ja", "topic": "travel", "text": "ジャパン・レール・パスは訪日外国人旅行者向けの乗車券で、有効期間中はJRの列車が乗り放題になる。" },
+    { "id": "travel-fushimi", "lang": "en", "topic": "travel", "text": "Fushimi Inari Taisha in Kyoto is famous for its thousands of vermilion torii gates winding up the mountain." },
+    { "id": "travel-ic-card", "lang": "en", "topic": "travel", "text": "IC cards such as Suica can be tapped at ticket gates to pay train fares and also used for purchases at convenience stores." },
+
+    { "id": "astro-mars", "lang": "ja", "topic": "astronomy", "text": "火星は表面の酸化鉄によって赤く見えることから「赤い惑星」と呼ばれる。" },
+    { "id": "astro-venus", "lang": "ja", "topic": "astronomy", "text": "金星は大きさや質量が地球に近いため「地球の双子」と呼ばれることがある。" },
+    { "id": "astro-moon", "lang": "ja", "topic": "astronomy", "text": "月はいつも同じ面を地球に向けているため、地球から月の裏側を直接見ることはできない。" },
+    { "id": "astro-jupiter", "lang": "en", "topic": "astronomy", "text": "Jupiter is the largest planet in the Solar System and has a giant storm called the Great Red Spot." },
+    { "id": "astro-saturn", "lang": "en", "topic": "astronomy", "text": "Saturn's rings are made mostly of countless pieces of water ice mixed with some rock and dust." },
+
+    { "id": "faq-password", "lang": "ja", "topic": "support FAQ", "text": "パスワードを忘れた場合は、ログイン画面の「パスワードをお忘れの方」から再設定用のメールを受け取ってください。" },
+    { "id": "faq-email", "lang": "ja", "topic": "support FAQ", "text": "登録メールアドレスは、アカウント設定の「プロフィール」画面から変更できます。" },
+    { "id": "faq-cancel", "lang": "ja", "topic": "support FAQ", "text": "解約はマイページの「契約内容」から手続きできます。解約した月の末日まではサービスを利用できます。" },
+    { "id": "faq-invoice", "lang": "ja", "topic": "support FAQ", "text": "請求書や領収書は、マイページの「お支払い履歴」からPDFでダウンロードできます。" },
+    { "id": "faq-2fa", "lang": "ja", "topic": "support FAQ", "text": "二段階認証を有効にすると、ログイン時にパスワードに加えて認証アプリのコードの入力が必要になります。" },
+
+    { "id": "hist-sekigahara", "lang": "ja", "topic": "history", "text": "関ヶ原の戦いは1600年に起こり、徳川家康率いる東軍が石田三成らの西軍に勝利した。" },
+    { "id": "hist-edo", "lang": "ja", "topic": "history", "text": "1603年、徳川家康が征夷大将軍に任命され、江戸幕府が開かれた。" },
+    { "id": "hist-tokyo", "lang": "ja", "topic": "history", "text": "明治維新に伴い、1868年に江戸は東京と改称された。" },
+    { "id": "hist-okehazama", "lang": "en", "topic": "history", "text": "At the Battle of Okehazama in 1560, Oda Nobunaga's small force defeated the much larger army of Imagawa Yoshimoto." },
+    { "id": "hist-perry", "lang": "en", "topic": "history", "text": "In 1853, Commodore Matthew Perry arrived at Uraga with U.S. warships and pressed Japan to open its ports." },
+
+    { "id": "pet-cat-onion", "lang": "ja", "topic": "pets", "text": "玉ねぎや長ねぎなどのネギ類は猫にとって中毒の原因となるため、絶対に与えてはいけない。" },
+    { "id": "pet-dog-walk", "lang": "ja", "topic": "pets", "text": "夏の犬の散歩は、アスファルトが高温になる日中を避け、早朝や日没後の涼しい時間帯に行うとよい。" },
+    { "id": "pet-goldfish", "lang": "ja", "topic": "pets", "text": "金魚の水槽の水換えは、一度に全部を替えるのではなく、3分の1程度ずつ行うのがよい。" },
+    { "id": "pet-rabbit", "lang": "en", "topic": "pets", "text": "A rabbit's diet should consist mainly of unlimited fresh hay, which keeps its digestive system healthy and wears down its teeth." },
+    { "id": "pet-dog-chocolate", "lang": "en", "topic": "pets", "text": "Chocolate is toxic to dogs because it contains theobromine, which dogs metabolize very slowly." },
+
+    { "id": "med-after-meal", "lang": "ja", "topic": "medication", "text": "この薬は1日3回、食後30分以内に服用してください。" },
+    { "id": "med-before-meal", "lang": "ja", "topic": "medication", "text": "この薬は1日2回、食事の30分前の空腹時に服用してください。" },
+    { "id": "med-bedtime", "lang": "ja", "topic": "medication", "text": "この薬は1日1回、就寝前に服用してください。" },
+    { "id": "med-as-needed", "lang": "ja", "topic": "medication", "text": "この薬は痛みがあるときだけ服用し、服用間隔は4時間以上あけてください。" },
+
+    { "id": "web-https", "lang": "en", "topic": "web", "text": "HTTPS encrypts the traffic between a browser and a website using TLS, protecting it from eavesdropping and tampering." },
+    { "id": "web-cookie", "lang": "en", "topic": "web", "text": "A cookie is a small piece of data that a website stores in the browser to remember information such as login sessions." },
+    { "id": "web-cdn", "lang": "en", "topic": "web", "text": "A content delivery network caches copies of files on servers around the world so users download them from a nearby location." },
+    { "id": "web-dns", "lang": "en", "topic": "web", "text": "DNS translates human-readable domain names like example.com into the IP addresses computers use to connect." }
+  ],
+  "queries": [
+    { "id": "q-fuji-height", "lang": "ja", "text": "日本でいちばん高い山はどのくらいの高さ？", "relevant": ["mt-fuji-height"] },
+    { "id": "q-fuji-season", "lang": "en", "text": "When is the climbing season for Mt. Fuji?", "relevant": ["mt-fuji-season"] },
+    { "id": "q-kitadake", "lang": "ja", "text": "日本で二番目に標高が高い山は？", "relevant": ["mt-kitadake"] },
+    { "id": "q-everest", "lang": "ja", "text": "世界で最も高い山の標高", "relevant": ["mt-everest"] },
+
+    { "id": "q-miso", "lang": "ja", "text": "味噌はどのタイミングで入れるのがいい？", "relevant": ["cook-miso"] },
+    { "id": "q-sushi-rice", "lang": "en", "text": "How should rice for sushi be seasoned?", "relevant": ["cook-sushi-rice"] },
+    { "id": "q-tempura", "lang": "ja", "text": "天ぷらの衣をサクサクにするコツ", "relevant": ["cook-tempura"] },
+    { "id": "q-nikujaga", "lang": "en", "text": "a sweet and savory simmered dish of beef and potatoes", "relevant": ["cook-nikujaga"] },
+
+    { "id": "q-js-sort", "lang": "ja", "text": "JSで数字の配列をソートすると10が2より前に来てしまう", "relevant": ["dev-js-sort"] },
+    { "id": "q-git-amend", "lang": "en", "text": "How do I fix the message of my last commit?", "relevant": ["dev-git-amend"] },
+    { "id": "q-git-branch-delete", "lang": "en", "text": "force delete a branch that has not been merged", "relevant": ["dev-git-branch-delete"] },
+    { "id": "q-docker-vm", "lang": "ja", "text": "コンテナと仮想マシンは何が違う？", "relevant": ["dev-docker-vm"] },
+
+    { "id": "q-heatstroke", "lang": "ja", "text": "真夏に外で倒れないための対策", "relevant": ["health-heatstroke"] },
+    { "id": "q-hayfever", "lang": "ja", "text": "春になると目がかゆくてくしゃみが止まらない原因", "relevant": ["health-hayfever"] },
+    { "id": "q-exercise", "lang": "ja", "text": "大人は週にどれくらい運動すればいい？", "relevant": ["health-exercise"] },
+    { "id": "q-sleep", "lang": "en", "text": "How many hours should an adult sleep?", "relevant": ["health-sleep"] },
+
+    { "id": "q-nisa", "lang": "ja", "text": "投資でもうけた利益が非課税になる制度", "relevant": ["fin-nisa"] },
+    { "id": "q-ideco", "lang": "ja", "text": "老後のための積み立てで、掛金を所得から控除できる制度", "relevant": ["fin-ideco"] },
+    { "id": "q-weak-yen", "lang": "en", "text": "Why do import prices go up when the yen weakens?", "relevant": ["fin-weak-yen"] },
+    { "id": "q-compound", "lang": "ja", "text": "利息にさらに利息がつく仕組み", "relevant": ["fin-compound"] },
+
+    { "id": "q-douga", "lang": "ja", "text": "中割りを描いて線を整える作業", "relevant": ["anime-douga"] },
+    { "id": "q-genga", "lang": "en", "text": "Which step draws the key poses of a character's movement?", "relevant": ["anime-genga"] },
+    { "id": "q-retake", "lang": "ja", "text": "修正のためにカットを戻してやり直してもらうこと", "relevant": ["anime-retake"] },
+    { "id": "q-compositing", "lang": "ja", "text": "キャラと背景を重ねて最終的な画面に仕上げる工程", "relevant": ["anime-compositing"] },
+
+    { "id": "q-shinkansen", "lang": "ja", "text": "新幹線で東京から大阪まで何時間かかる？", "relevant": ["travel-shinkansen"] },
+    { "id": "q-jrpass", "lang": "en", "text": "unlimited train pass for foreign tourists in Japan", "relevant": ["travel-jrpass"] },
+    { "id": "q-fushimi", "lang": "ja", "text": "朱色の鳥居がずらりと並ぶ京都の神社", "relevant": ["travel-fushimi"] },
+    { "id": "q-ic-card", "lang": "ja", "text": "改札でタッチして運賃を払えるカード", "relevant": ["travel-ic-card"] },
+
+    { "id": "q-mars", "lang": "en", "text": "Which planet is known as the Red Planet?", "relevant": ["astro-mars"] },
+    { "id": "q-jupiter", "lang": "ja", "text": "太陽系でいちばん大きい惑星", "relevant": ["astro-jupiter"] },
+    { "id": "q-venus", "lang": "ja", "text": "地球と大きさがよく似た惑星", "relevant": ["astro-venus"] },
+    { "id": "q-saturn", "lang": "ja", "text": "土星の輪は何でできている？", "relevant": ["astro-saturn"] },
+    { "id": "q-moon", "lang": "en", "text": "Why can't we see the far side of the Moon from Earth?", "relevant": ["astro-moon"] },
+
+    { "id": "q-password", "lang": "ja", "text": "ログインできない。パスワードがわからない", "relevant": ["faq-password"] },
+    { "id": "q-cancel", "lang": "ja", "text": "サブスクをやめたい", "relevant": ["faq-cancel"] },
+    { "id": "q-invoice", "lang": "ja", "text": "経費精算用に支払いの証明書類がほしい", "relevant": ["faq-invoice"] },
+    { "id": "q-email", "lang": "en", "text": "How do I change the email address on my account?", "relevant": ["faq-email"] },
+    { "id": "q-2fa", "lang": "en", "text": "How do I turn on 2FA?", "relevant": ["faq-2fa"] },
+
+    { "id": "q-sekigahara", "lang": "ja", "text": "天下分け目の戦いに勝ったのは誰？", "relevant": ["hist-sekigahara"] },
+    { "id": "q-edo", "lang": "en", "text": "When was the Edo shogunate established?", "relevant": ["hist-edo"] },
+    { "id": "q-okehazama", "lang": "ja", "text": "織田信長が少ない兵で大軍を破った戦い", "relevant": ["hist-okehazama"] },
+    { "id": "q-tokyo", "lang": "ja", "text": "江戸が東京という名前になったのはいつ？", "relevant": ["hist-tokyo"] },
+    { "id": "q-perry", "lang": "ja", "text": "黒船が来航して開国を迫った出来事", "relevant": ["hist-perry"] },
+
+    { "id": "q-cat-onion", "lang": "ja", "text": "猫に食べさせてはいけない野菜", "relevant": ["pet-cat-onion"] },
+    { "id": "q-rabbit", "lang": "en", "text": "What should I feed my rabbit every day?", "relevant": ["pet-rabbit"] },
+    { "id": "q-dog-walk", "lang": "ja", "text": "暑い季節に犬を散歩させる時間帯", "relevant": ["pet-dog-walk"] },
+    { "id": "q-dog-chocolate", "lang": "ja", "text": "犬にチョコレートを与えてはいけない理由", "relevant": ["pet-dog-chocolate"] },
+    { "id": "q-goldfish", "lang": "en", "text": "How much water should I change in a goldfish tank?", "relevant": ["pet-goldfish"] },
+
+    { "id": "q-before-meal", "lang": "ja", "text": "ごはんを食べる前に飲む薬", "relevant": ["med-before-meal"] },
+    { "id": "q-bedtime", "lang": "ja", "text": "寝る前に1回だけ飲む薬", "relevant": ["med-bedtime"] },
+    { "id": "q-after-meal", "lang": "en", "text": "Take this medicine after meals", "relevant": ["med-after-meal"] },
+    { "id": "q-as-needed", "lang": "ja", "text": "痛いときだけ飲めばいい薬", "relevant": ["med-as-needed"] },
+
+    { "id": "q-cookie", "lang": "en", "text": "How does a website remember that I am logged in?", "relevant": ["web-cookie"] },
+    { "id": "q-dns", "lang": "en", "text": "What turns a domain name into an IP address?", "relevant": ["web-dns"] },
+    { "id": "q-cdn", "lang": "en", "text": "Why do sites load faster when files are served from servers near me?", "relevant": ["web-cdn"] },
+    { "id": "q-https", "lang": "ja", "text": "通信を暗号化して盗聴を防ぐ仕組み", "relevant": ["web-https"] }
+  ]
+}
