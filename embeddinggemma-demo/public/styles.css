@@ -712,3 +712,62 @@ table.data td.wrap-cell {
     max-width: 8em;
   }
 }
+
+/* 文字生成 tab */
+.chargen-current {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  margin: 0 0 8px;
+}
+
+.chargen-text {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.chargen-score {
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.chargen-steps {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  max-height: 22rem;
+  overflow-y: auto;
+}
+
+.chargen-steps li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--surface-sunken);
+  font-size: 0.88rem;
+}
+
+.chargen-step-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.chargen-alternatives {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chargen-alternatives .chosen {
+  color: var(--accent-strong);
+  font-weight: 600;
+}

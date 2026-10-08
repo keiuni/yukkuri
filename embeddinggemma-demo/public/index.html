@@ -17,6 +17,7 @@
           <a href="https://huggingface.co/google/embeddinggemma-300m" target="_blank" rel="noopener">google/embeddinggemma-300m</a>
           の ONNX 版をブラウザ内で実行します。入力したテキストは外部に送信されません。
         </p>
+        <p class="lede"><a href="phone.html">スマホ実行チェック</a>: この端末で Gemma 系のモデルが動くかを調べるページです。</p>
       </div>
     </header>
 
@@ -56,6 +57,7 @@
         <button class="tab" role="tab" id="tab-search" aria-controls="panel-search" aria-selected="true" type="button">検索</button>
         <button class="tab" role="tab" id="tab-similarity" aria-controls="panel-similarity" aria-selected="false" tabindex="-1" type="button">類似度マトリクス</button>
         <button class="tab" role="tab" id="tab-benchmark" aria-controls="panel-benchmark" aria-selected="false" tabindex="-1" type="button">ミニベンチマーク</button>
+        <button class="tab" role="tab" id="tab-chargen" aria-controls="panel-chargen" aria-selected="false" tabindex="-1" type="button">文字生成</button>
       </div>
 
       <section class="card panel" id="panel-search" role="tabpanel" aria-labelledby="tab-search">
@@ -139,6 +141,63 @@
           <span class="progress-label"></span>
         </div>
         <div id="benchmark-results" class="results" data-testid="benchmark-results"></div>
+      </section>
+
+      <section class="card panel" id="panel-chargen" role="tabpanel" aria-labelledby="tab-chargen" hidden>
+        <p class="panel-intro">
+          EmbeddingGemma は文章を書くモデルではありません。ここでは文字列の後ろに 1 文字ずつ足しては埋め込み、
+          目標の埋め込みにいちばん近づく文字を選び続けます。候補はかな・句読点・数字と、目標に近い漢字です。
+        </p>
+        <div class="controls">
+          <label class="field">
+            <span>目標</span>
+            <select id="chargen-mode">
+              <option value="invert">文を復元する</option>
+              <option value="query">質問に答える文を作る</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>探索の幅</span>
+            <select id="chargen-beam">
+              <option value="1" selected>1（貪欲法）</option>
+              <option value="2">2</option>
+              <option value="4">4</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>漢字の候補</span>
+            <select id="chargen-shortlist">
+              <option value="16">16 字</option>
+              <option value="32" selected>32 字</option>
+              <option value="48">48 字</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>最大文字数</span>
+            <select id="chargen-length">
+              <option value="12">12</option>
+              <option value="20" selected>20</option>
+              <option value="30">30</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>かな</span>
+            <select id="chargen-kana">
+              <option value="1" selected>候補にする（約 210 字）</option>
+              <option value="0">候補にしない（約 50 字・速い）</option>
+            </select>
+          </label>
+        </div>
+        <label class="field block">
+          <span id="chargen-input-label">元の文</span>
+          <input id="chargen-input" type="text" autocomplete="off" />
+        </label>
+        <div class="actions">
+          <button id="chargen-button" class="button primary needs-model" type="button" disabled>生成する</button>
+          <button id="chargen-stop" class="button" type="button" hidden>止める</button>
+          <span class="run-note" id="chargen-note"></span>
+        </div>
+        <div id="chargen-results" class="results" data-testid="chargen-results" aria-live="polite"></div>
       </section>
     </main>
 

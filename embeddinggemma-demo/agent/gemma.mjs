@@ -16,6 +16,7 @@ export const GEMMA4_ID = 'onnx-community/gemma-4-E2B-it-ONNX';
 
 export class EmbeddingGemma {
   name = 'EmbeddingGemma 300M';
+  batchSize = 16;
   #cache = new Map();
 
   static async load() {
@@ -29,8 +30,8 @@ export class EmbeddingGemma {
   async embed(texts) {
     // Batches are padded to their longest text, so embed similar lengths together.
     const missing = [...new Set(texts.filter((text) => !this.#cache.has(text)))].sort((a, b) => a.length - b.length);
-    for (let start = 0; start < missing.length; start += 16) {
-      const batch = missing.slice(start, start + 16);
+    for (let start = 0; start < missing.length; start += this.batchSize) {
+      const batch = missing.slice(start, start + this.batchSize);
       const inputs = await this.tokenizer(batch, { padding: true, truncation: true });
       const { sentence_embedding } = await this.model(inputs);
       const [rows, dim] = sentence_embedding.dims;

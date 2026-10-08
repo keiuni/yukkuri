@@ -9,7 +9,8 @@ Playwright で画面を実際に操作する E2E 検証も同梱しています�
 [docs/results-2026-10-07.md](docs/results-2026-10-07.md) にまとめました。
 
 jev-ultrafast の Jev（次の操作を選ぶ判断役）を EmbeddingGemma に置き換えたブラウザエージェントも入っています
-（下の「Gemma ブラウザエージェント」）。
+（下の「Gemma ブラウザエージェント」）。スマホのブラウザで Gemma 系のモデルが動くかを調べるページと、
+EmbeddingGemma に 1 文字ずつ文字を選ばせる実験もあります（[docs/phone-and-chargen-2026-10-08.md](docs/phone-and-chargen-2026-10-08.md)）。
 
 ![検索タブ](docs/screenshots/search.png)
 
@@ -20,6 +21,7 @@ jev-ultrafast の Jev（次の操作を選ぶ判断役）を EmbeddingGemma に�
 | 検索 | クエリに近い文書を順位付け。タスク別プロンプト、MRL 次元（768/512/256/128）を切り替え可能。サンプルは想定解に「想定解」バッジが付くので外れがすぐ分かる |
 | 類似度マトリクス | 複数文のコサイン類似度をヒートマップ表示。日英の言い換えがまとまるかを確認 |
 | ミニベンチマーク | 日英の小さな検索データセット（文書63件・クエリ56件、紛らわしい文書入り）で Top-1 / Recall@5 / MRR@10 / nDCG@10 と速度を測定。プロンプト有無 × 次元の比較、言語ペア別、外したクエリの一覧、JSON 保存 |
+| 文字生成 | 文字列に 1 文字ずつ足しては埋め込み、目標（文や質問の埋め込み）にいちばん近づく文字を選び続ける。各ステップの上位候補と類似度を表示 |
 
 モデルパネルでは精度（fp32 / q8 / q4）、実行環境（WASM / WebGPU）、WASM のスレッド数を選べます。
 
@@ -113,8 +115,70 @@ npm run record -- similarity benchmark    # 指定したシナリオだけ
 | `similarity` | 類似度マトリクスを計算し、セルをホバー。英文を 1 行足して再計算 |
 | `precision` | q8 → fp32 → q4 と読み込み直し、モデルカードの値との差を比べる |
 | `benchmark` | ミニベンチマークを実行し、結果を順に見る |
+| `chargen` | 文字生成タブで、文の復元と質問への「回答」を 1 文字ずつ生成する（fp32） |
 
 字幕の数値はその場の結果から作るので、結果が変わっても字幕と画面が食い違いません。録画中は CPU を録画にも使うため、速度の数値は参考程度にしてください。
+
+## スマホ実行チェック
+
+`phone.html` は、開いた端末のブラウザで次のモデルが動くかを調べるページです。
+
+- EmbeddingGemma 300M（q4 / q8）
+- Gemma 3 270M（q4f16 / q4 / fp32）
+- Gemma 3 1B（q4f16 / q4）
+- Gemma 4 E2B（q4f16 / q4）
+
+ページは WebGPU の有無、f16 対応、GPU の 1 バッファの上限、メモリを調べて、モデルごとに「動きそう／微妙／動かない見込み」を出します。
+「試す」を押すとモデルを読み込み、読み込み時間・最初の 1 トークンまでの時間・生成速度を測ります。
+Google の LiteRT-LM Web 版の Gemma 4 E2B は、公式デモへのリンクで試せます。
+
+```bash
+npm run download-phone-models     # 計測用のモデルを ./models に置く（WebGPU の f16 版以外）
+npm run phone-check               # Pixel 7 の画面 + ソフトウェア WebGPU（f16 なし・1 GiB 上限）で全モデルを試す
+npm run phone-check -- gemma-3-270m:fp32:wasm --tokens 64 --repeat 2
+```
+
+このクラウド環境（CPU 4 コア・GPU なし）での結果は次のとおりです。
+
+| モデル | 実行 | 結果 |
+| --- | --- | --- |
+| EmbeddingGemma q8 | WASM | ✓ 1 文 0.24 秒、タブのメモリ 2.0 GB |
+| Gemma 3 270M fp32 | WASM | ✓ 10 トークン/秒、タブのメモリ 4.1 GB |
+| Gemma 3 270M / 1B q4 | WebGPU | ✓ 読み込みと生成ができる（ソフト GPU なので速度は参考外） |
+| Gemma 3 270M q4 | WASM | ✗ 埋め込み表の GatherBlockQuantized が WASM 版 onnxruntime にない（q8 版も同じ演算を使う） |
+| Gemma 4 E2B q4 | WebGPU | ✗ 1,174 MB の重みが 1 GiB のバッファ上限に入らず、最初の推論で失敗 |
+
+スマホ実機で試すには、HTTPS で配信する必要があります（WebGPU は HTTPS か localhost でしか使えません）。
+このリポジトリは公開されているので、GitHub Pages（Settings → Pages、Branch: `claude/wizardly-clarke-gcgyaw`、`/ (root)`）を有効にすると、
+`https://keiuni.github.io/yukkuri/embeddinggemma-demo/public/phone.html` で開けます。
+詳しい結果と考察は [docs/phone-and-chargen-2026-10-08.md](docs/phone-and-chargen-2026-10-08.md) にあります。
+
+## 文字生成（EmbeddingGemma を 1 文字ずつ回す）
+
+EmbeddingGemma は文章を書くモデルではありません。そこで、いまの文字列の後ろに候補の文字を 1 つずつ足して埋め込み、
+目標の埋め込みにいちばん近づいた文字を残す、を繰り返します（貪欲法、またはビームサーチ）。目標は次の 2 通りです。
+
+- 文の復元: 文の埋め込みを目標にして、元の文を書き戻せるかを見る
+- 質問への回答: 質問の埋め込みを目標にして、モデルがどんな文書を「答え」とみなすかを見る
+
+候補はかな・句読点・数字と、目標に近い漢字（1 文字だけの埋め込みで選んだ上位）です。
+漢字は日本語版ウィキペディアの一般的な記事でよく使われる 2,000 字です（`scripts/build-char-vocab.mjs`）。
+
+```bash
+npm run char-generate                       # 7 つの実験を貪欲法とビーム幅 4 で → test-output/char-gen/results.json
+npm run char-generate -- query-mountain --beams 1
+```
+
+結果の一部です（fp32・ビーム幅 4）。文章にはならず、意味の濃い漢字を並べた文字列になります。
+
+| 目標 | 生成された文字列 | 類似度 |
+| --- | --- | ---: |
+| 文「東京タワーは東京都港区にある電波塔です。」 | 塔は都電港区都塔で、都の塔・、 | 0.893 |
+| 文「猫に玉ねぎを食べさせてはいけない。」 | 猫餌禁菜・猫、オめぼをと禁きつの猫やのうき | 0.882 |
+| 質問「猫に食べさせてはいけないものは？」 | 猫食忌だ餌。菜菓毒禁味ゾ。禁ンよりぐ。 | 0.690（正しい答えの文は 0.620） |
+
+単語の途中（「タ」「タワ」）では類似度が上がらないので、「タワー」のような語は組み立てられません。質問に対しては答えではなく話題の字を並べ、
+意味の通らない文字列が正しい答えの文より高い類似度になることもあります。詳しくは [docs/phone-and-chargen-2026-10-08.md](docs/phone-and-chargen-2026-10-08.md) にあります。
 
 ## Gemma ブラウザエージェント（Jev の代わりに Gemma）
 
@@ -203,6 +267,19 @@ agent/actions.mjs           候補の作成、値の決め方、Playwright で�
 agent/gemma.mjs             EmbeddingGemma と Gemma 4 E2B（計画・完了判定・比較用の判断役）
 agent/tasks.mjs             6 つのタスクと、それぞれの結果の検証
 public/sites/               エージェントが操作するモックサイト（宿泊予約・通販・アカウント設定）
+public/phone.html, phone.js スマホ実行チェック（端末の WebGPU・メモリの確認と、モデルごとの試行）
+public/phone.worker.js      スマホ実行チェックの 1 回の試行（試行ごとに新しいワーカー）
+public/lib/phone-models.js  候補モデルのサイズ・最大の重み・リビジョンと、動くかどうかの判定
+public/chargen-tab.js       文字生成タブ
+public/lib/char-gen.js      1 文字ずつの生成（候補の選び方、貪欲法・ビームサーチ、評価）
+public/data/char-vocab.json 文字生成の候補文字（かな・記号と、よく使う漢字 2,000 字）
+public/data/char-vectors.json 候補文字 1 文字ずつの埋め込み（int8、漢字の絞り込み用）
+scripts/phone-check.mjs     スマホ相当の条件で phone.html を動かし、結果とメモリを記録
+scripts/download-phone-models.mjs  スマホ実行チェック用のモデルのダウンロード
+scripts/char-generate.mjs   文字生成の実験
+scripts/build-char-vocab.mjs, export-char-vectors.mjs  候補文字とその埋め込みの作成
+scripts/lib/hub.mjs         Hugging Face Hub からのダウンロード
+scripts/lib/char-vectors.mjs  候補文字の埋め込みの計算とキャッシュ
 tests/unit, tests/e2e       単体テスト、Playwright テスト
 ```
 

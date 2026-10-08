@@ -219,5 +219,36 @@ for (const dtype of DTYPES) {
       expect(file.suggestedFilename()).toBe(`embeddinggemma-benchmark-${dtype}-wasm.json`);
       await page.screenshot({ path: screenshotPath(dtype, 'benchmark'), fullPage: true });
     });
+
+    test('writes text one character at a time towards a sentence embedding', async () => {
+      test.setTimeout(SLOW);
+      await page.getByRole('tab', { name: '文字生成' }).click();
+      await page.getByLabel('漢字の候補').selectOption('16');
+      await page.getByLabel('最大文字数').selectOption('12');
+      await page.getByRole('button', { name: '生成する' }).click();
+      await expect(page.locator('#chargen-results')).toHaveAttribute('data-done', /true|error/, { timeout: SLOW });
+      await expect(page.locator('#chargen-results')).toHaveAttribute('data-done', 'true');
+
+      const text = await page.locator('#chargen-results .chargen-text').textContent();
+      const steps = await page.locator('#chargen-results .chargen-steps li').count();
+      record.chargen = { text, steps, note: await page.locator('#chargen-note').textContent() };
+      expect(steps).toBeGreaterThan(0);
+      // Content characters of the target sentence come first; the order is not expected to survive.
+      expect([...'東京都港区電波塔'].some((char) => text.includes(char))).toBe(true);
+      await page.screenshot({ path: screenshotPath(dtype, 'chargen'), fullPage: true });
+    });
   });
 }
+
+test('phone check page rates every model for this browser without loading any', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/phone.html');
+  await expect(page.locator('#device-status')).toHaveAttribute('data-state', 'ready');
+  await expect(page.locator('#device-facts div')).toHaveCount(8);
+  const levels = await page.locator('.model-row .chip').evaluateAll((chips) => chips.map((chip) => chip.dataset.level));
+  expect(levels.length).toBeGreaterThan(5);
+  expect(levels.every((level) => ['yes', 'maybe', 'no'].includes(level))).toBe(true);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  await page.screenshot({ path: `${OUTPUT_DIR}/screenshots/phone-check.png`, fullPage: true });
+});

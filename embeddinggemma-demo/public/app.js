@@ -1,3 +1,4 @@
+import { initCharGen } from './chargen-tab.js';
 import { SEARCH_PRESETS, SIMILARITY_SENTENCES } from './data/presets.js';
 import { evaluateRetrieval, mean, percentile, rankIndices, similarityMatrix, truncateAndNormalize } from './lib/metrics.js';
 import { DTYPES, MODEL_ID, MRL_DIMS, NO_PROMPT, QUERY_TASKS, documentPrompt, queryPrompt } from './lib/model-config.js';
@@ -791,6 +792,7 @@ initTabs();
 initDims();
 initSearch();
 initSimilarity();
+initCharGen({ $, el, embedCached, runExclusive, fmtMs });
 await Promise.all([initModelPanel(), initBenchmark()]);
 updateButtons();
 document.body.dataset.ready = 'true';

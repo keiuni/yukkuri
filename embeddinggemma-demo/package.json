@@ -10,11 +10,14 @@
   "scripts": {
     "start": "node server.mjs",
     "download-model": "node scripts/download-model.mjs",
+    "download-phone-models": "node scripts/download-phone-models.mjs",
     "test": "node --test \"tests/unit/**/*.test.js\"",
     "test:e2e": "playwright test",
     "report": "node scripts/make-report.mjs",
     "record": "node scripts/record-demo.mjs",
-    "agent": "node agent/run.mjs"
+    "agent": "node agent/run.mjs",
+    "phone-check": "node scripts/phone-check.mjs",
+    "char-generate": "node scripts/char-generate.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1"

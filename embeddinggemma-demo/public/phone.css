@@ -1,0 +1,147 @@
+/* Phone check page. Colors come from the tokens in styles.css. */
+:root {
+  --yes: var(--good-ink);
+  --maybe: #a15c00;
+  --no: var(--critical);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --maybe: #e0a040;
+  }
+}
+
+:root[data-theme="dark"] {
+  --maybe: #e0a040;
+}
+
+body {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.small {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.device-facts {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.device-facts dd {
+  overflow-wrap: anywhere;
+}
+
+.model-list,
+.result-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.model-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--page);
+}
+
+.model-name {
+  margin: 0;
+  font-weight: 600;
+}
+
+.model-meta {
+  margin: 2px 0 0;
+  color: var(--ink-2);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.verdict {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-2);
+}
+
+.chip {
+  flex: none;
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.chip[data-level="yes"] {
+  color: var(--yes);
+}
+
+.chip[data-level="maybe"] {
+  color: var(--maybe);
+}
+
+.chip[data-level="no"] {
+  color: var(--no);
+}
+
+.model-row .button {
+  white-space: nowrap;
+}
+
+.model-row .progress {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.result-item {
+  padding: 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+}
+
+.result-item h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.result-item .numbers {
+  margin: 6px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  font-size: 0.85rem;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.result-item .numbers strong {
+  color: var(--ink);
+}
+
+.result-item .output {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--surface-sunken);
+  font-size: 0.88rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.result-item[data-ok="false"] .output {
+  color: var(--critical);
+}

@@ -5,6 +5,8 @@
 //
 //   npm run record                                  # every scenario
 //   npm run record -- similarity benchmark          # only the named ones
+//   npm run record -- chargen                       # the 文字生成 tab (a few minutes of embedding)
+//   npm run record -- phone-check                   # phone.html on a Pixel 7 screen (needs npm run download-phone-models)
 //   RECORD_DEBUG=1 npm run record                   # also print how long each cut/fast-forward lasted
 //
 // Output: test-output/videos/<nn>-<scenario>.mp4 (H.264 via ffmpeg; WebM is kept if
@@ -14,7 +16,7 @@ import { mkdir, rename, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { chromium } from '@playwright/test';
+import { chromium, devices } from '@playwright/test';
 
 import { startServer, toMp4 } from './lib/video.mjs';
 
@@ -49,6 +51,12 @@ function installOverlay() {
       #rec-title h1 { margin: 0; font-size: 40px; line-height: 1.3; }
       #rec-title p { margin: 0; font-size: 21px; opacity: 0.85; }
       #rec-title.hide { opacity: 0; }
+      @media (max-width: 600px) {
+        #rec-caption { bottom: 16px; max-width: calc(100% - 24px); padding: 8px 12px; font-size: 15px; }
+        #rec-caption small, #rec-caption .speed { font-size: 12.5px; }
+        #rec-title h1 { font-size: 28px; }
+        #rec-title p { font-size: 16px; }
+      }
     `;
     document.head.append(style);
 
@@ -515,6 +523,89 @@ const SCENARIOS = [
       );
     },
   },
+  {
+    id: 'chargen',
+    title: '⑦ 文字生成',
+    subtitle: '埋め込みが目標に近づく文字を、1 文字ずつ選び続ける',
+    async run(rec, page) {
+      // fp32 is the fastest precision on WASM, and this tab embeds a few thousand short texts.
+      await rec.openLoaded('fp32');
+      await rec.title(this.title, this.subtitle);
+      await rec.click(page.getByRole('tab', { name: '文字生成' }));
+      await rec.moveTo(page.locator('#panel-chargen .panel-intro'));
+      await rec.say('EmbeddingGemma には文章を書く機能がない', '1 文字足しては埋め込み、目標の埋め込みにいちばん近づく文字を選ぶ、を繰り返す', 4000);
+
+      const generate = async (label) => {
+        await page.locator('#chargen-results').evaluate((node) => {
+          node.dataset.done = 'false';
+        });
+        await rec.click(page.getByRole('button', { name: '生成する' }));
+        await page.locator('#chargen-results .chargen-steps li').nth(1).waitFor({ timeout: 10 * 60 * 1000 });
+        await rec.scrollTo(page.locator('#chargen-results'), 200);
+        await rec.say(`${label}：1 文字ごとに、候補の中で目標にいちばん近いものを選ぶ`, '下の一覧は各ステップの上位 5 候補と類似度', 3000);
+        await rec.fastForward('1 文字ずつ生成中', () => page.locator('#chargen-results[data-done="true"]').waitFor({ timeout: 20 * 60 * 1000 }));
+        return page.locator('#chargen-results .chargen-text').textContent();
+      };
+
+      await rec.caption('「文を復元する」：元の文の埋め込みを目標にする');
+      await rec.moveTo(page.locator('#chargen-input'));
+      await page.waitForTimeout(1500);
+      const inverted = await generate('文の復元');
+      await rec.say(`結果「${inverted}」`, (await page.locator('#chargen-note').textContent()).replace(/^完了/, ''), 5000);
+
+      await rec.scrollTo(page.locator('#chargen-mode'), 200);
+      await rec.caption('「質問に答える文を作る」：質問の埋め込みを目標にする');
+      await rec.select(page.locator('#chargen-mode'), 'query');
+      const answered = await generate('「日本でいちばん高い山は？」');
+      await rec.say(`結果「${answered}」`, '文章ではなく、類似度が上がる文字の並びになる', 5000);
+    },
+  },
+  {
+    id: 'phone-check',
+    title: '⑧ スマホ実行チェック',
+    subtitle: 'この端末で動きそうなモデルを調べて、実際に試す',
+    device: 'Pixel 7',
+    async run(rec, page) {
+      await page.goto(`${BASE_URL}/phone.html?tokens=48`);
+      await page.locator('#device-status[data-state="ready"]').waitFor();
+      await rec.title(this.title, this.subtitle);
+      const device = await page.evaluate(() => window.phoneCheck.device);
+
+      await rec.moveTo(page.locator('#device-facts'));
+      await rec.say(
+        '端末の WebGPU・f16・GPU の 1 バッファの上限・メモリを調べる',
+        device.webgpu ? `この録画環境はソフトウェアの WebGPU（f16 なし・上限 ${Math.floor(device.webgpu.maxBufferSize / 1e6).toLocaleString('en-US')} MB）` : 'この録画環境には WebGPU がない',
+        4200,
+      );
+      const gemma4 = page.locator('.model-row[data-key="gemma-4-e2b:q4:webgpu"]');
+      await rec.scrollTo(gemma4, 260);
+      await rec.say('Gemma 4 E2B：1,174 MB の重みが 1 バッファに入らない', 'ダウンロードも 3.1〜3.6 GB あるので「動かない見込み」', 4200);
+
+      const tryModel = async (key, label) => {
+        const row = page.locator(`.model-row[data-key="${key}"]`);
+        await rec.scrollTo(row, 200);
+        const before = await page.locator('#result-list li').count();
+        await rec.caption(`${label} を試す`);
+        await rec.click(row.getByRole('button', { name: '試す' }));
+        return () => page.locator('#result-list li').nth(before).waitFor({ timeout: 10 * 60 * 1000 });
+      };
+
+      const embeddingDone = await tryModel('embeddinggemma:q8:wasm', 'EmbeddingGemma（q8・CPU）');
+      await rec.fastForward('モデルを読み込み中', embeddingDone);
+      await rec.scrollTo(page.locator('#result-list li').first(), 140);
+      await rec.say('EmbeddingGemma は CPU（WASM）でも軽く動く', '「猫に食べさせてはいけないものは？」で玉ねぎの文が 1 位', 4200);
+
+      const gemmaDone = await tryModel('gemma-3-270m:fp32:wasm', 'Gemma 3 270M（fp32・CPU）');
+      await rec.fastForward('モデルを読み込み中（1.1 GB）', () =>
+        page.locator('.model-row[data-key="gemma-3-270m:fp32:wasm"] .progress-label', { hasText: '生成中:' }).waitFor({ timeout: 10 * 60 * 1000 }),
+      );
+      await rec.caption('文章を生成中（等速）');
+      await page.waitForTimeout(3500);
+      await rec.fastForward('文章を生成中', gemmaDone);
+      await rec.scrollTo(page.locator('#result-list li').first(), 140);
+      await rec.say('Gemma 3 270M は CPU でも 1 秒に約 10 トークン', '4bit 版は CPU（WASM）では動かないので fp32 を使っている', 5000);
+    },
+  },
 ];
 
 // ---------------------------------------------------------------- main
@@ -528,11 +619,13 @@ if (scenarios.length === 0) {
 
 await mkdir(RAW_DIR, { recursive: true });
 const server = await startServer(ROOT, PORT);
-const browser = await chromium.launch();
+// Software WebGPU (no f16, 1 GiB buffers) so that the phone check shows real limits.
+const browser = await chromium.launch({ args: ['--enable-unsafe-webgpu'] });
 try {
   for (const scenario of scenarios) {
     const number = String(SCENARIOS.indexOf(scenario) + 1).padStart(2, '0');
-    const context = await browser.newContext({ viewport: VIEWPORT, recordVideo: { dir: RAW_DIR, size: VIEWPORT } });
+    const device = scenario.device ? devices[scenario.device] : { viewport: VIEWPORT };
+    const context = await browser.newContext({ ...device, locale: 'ja-JP', recordVideo: { dir: RAW_DIR, size: device.viewport } });
     await context.addInitScript(installOverlay);
     const page = await context.newPage();
     const rec = new Recording(page);

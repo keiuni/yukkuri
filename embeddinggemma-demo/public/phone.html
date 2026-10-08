@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <title>スマホ実行チェック</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="phone.css" />
+    <script type="module" src="phone.js"></script>
+  </head>
+  <body>
+    <header class="page-header">
+      <div class="wrap">
+        <h1>スマホ実行チェック</h1>
+        <p class="lede">
+          この端末のブラウザで Gemma 系のモデルが動くかを調べます。モデルはブラウザの中で動き、入力は外部に送られません。
+          「試す」を押すとモデルをダウンロードするので、モバイル通信では容量に注意してください。
+        </p>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="card" aria-labelledby="device-heading">
+        <div class="card-head">
+          <h2 id="device-heading">この端末</h2>
+          <p id="device-status" class="status" data-state="loading" role="status">調べています…</p>
+        </div>
+        <dl class="facts device-facts" id="device-facts"></dl>
+      </section>
+
+      <section class="card" aria-labelledby="models-heading">
+        <div class="card-head">
+          <h2 id="models-heading">モデル</h2>
+          <p class="muted small">判定は公開されている上限値からの目安です。実際に試すと確かめられます。</p>
+        </div>
+        <ul class="model-list" id="model-list"></ul>
+        <p class="muted small" id="prompt-note"></p>
+      </section>
+
+      <section class="card" aria-labelledby="results-heading">
+        <div class="card-head">
+          <h2 id="results-heading">結果</h2>
+          <button id="copy-results" class="button" type="button" disabled>結果をコピー</button>
+        </div>
+        <p class="muted small" id="results-empty">まだ何も試していません。</p>
+        <ol class="result-list" id="result-list"></ol>
+      </section>
+    </main>
+
+    <footer class="page-footer wrap">
+      <a href="index.html">EmbeddingGemma Playground に戻る</a>
+    </footer>
+  </body>
+</html>
