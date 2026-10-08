@@ -116,6 +116,7 @@ npm run record -- similarity benchmark    # 指定したシナリオだけ
 | `precision` | q8 → fp32 → q4 と読み込み直し、モデルカードの値との差を比べる |
 | `benchmark` | ミニベンチマークを実行し、結果を順に見る |
 | `chargen` | 文字生成タブで、文の復元と質問への「回答」を 1 文字ずつ生成する（fp32） |
+| `phone-check` | スマホ実行チェックを Pixel 7 の画面で開き、EmbeddingGemma と Gemma 3 270M を試す（要 `npm run download-phone-models`） |
 
 字幕の数値はその場の結果から作るので、結果が変わっても字幕と画面が食い違いません。録画中は CPU を録画にも使うため、速度の数値は参考程度にしてください。
 
