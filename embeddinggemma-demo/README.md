@@ -17,6 +17,8 @@ jev-ultrafast の Jev（次の操作を選ぶ判断役）を EmbeddingGemma に�
 EmbeddingGemma に 1 文字ずつ文字を選ばせる実験もあります（[docs/phone-and-chargen-2026-10-08.md](docs/phone-and-chargen-2026-10-08.md)）。
 EmbeddingGemma 2 がどんなときに間違えるかは、失敗パターン別の問題集・長い文書・ブラウザエージェントで調べました
 （[docs/embeddinggemma-2-failures-2026-10-08.md](docs/embeddinggemma-2-failures-2026-10-08.md)）。
+スマホで動く小型モデル（Gemma 4 E2B / E4B など）が日本語の返信や会話にどこまで使えるかも比べました
+（[docs/japanese-chat-2026-10-08.md](docs/japanese-chat-2026-10-08.md)）。
 
 ![検索タブ](docs/screenshots/search.png)
 
@@ -149,6 +151,7 @@ Playwright の録画は、画面の描き替えが多い場面（プログレス
 
 - EmbeddingGemma 300M（q4 / q8）
 - EmbeddingGemma 2 のテキストモデル（q4 / q8 は WebGPU、fp32 は WASM）
+- LFM2.5-1.2B-JP（Liquid AI の日本語モデル。q4f16 / q4、WebGPU のみ）
 - LFM2.5-2.6B（Liquid AI。q4f16 / q4、WebGPU のみ）
 - Gemma 3 270M（q4f16 / q4 / fp32）
 - Gemma 3 1B（q4f16 / q4）
@@ -156,6 +159,7 @@ Playwright の録画は、画面の描き替えが多い場面（プログレス
 
 ページは WebGPU の有無、f16 対応、GPU の 1 バッファの上限、メモリを調べて、モデルごとに「動きそう／微妙／動かない見込み」を出します。
 「試す」を押すとモデルを読み込み、読み込み時間・最初の 1 トークンまでの時間・生成速度を測ります。
+文章生成のモデルには、聞く内容と答えの長さ（64 / 160 / 320 トークン）を自分で入れられます。
 Google の LiteRT-LM Web 版の Gemma 4 E2B は、公式デモへのリンクで試せます。
 
 ```bash
@@ -314,6 +318,32 @@ node scripts/failure-report.mjs                                         # 比較
 npm run agent -- --hard --embedding v2                                  # 失敗しやすい 7 タスク（--plain で書き直した手順）
 ```
 
+## スマホ向け小型モデルの日本語（返信・会話）
+
+結果は [docs/japanese-chat-2026-10-08.md](docs/japanese-chat-2026-10-08.md) にまとめました。
+7 モデルに返信・会話・書き換え・知識の 27 問を解かせ、Claude の採点役 2 人がモデル名を伏せて採点しました。
+
+| モデル | そのまま使える | 返信 | 会話（「短く」と指示したとき） | 事実 10 問 × 5 回 |
+| --- | ---: | ---: | ---: | ---: |
+| Gemma 4 E4B | 54% | 81% | 89% | 96% |
+| Gemma 4 E2B | 41% | 56% | 67% | 66% |
+| LFM2.5-1.2B-JP | 31% | 13% | 22% | 74% |
+| TinySwallow-1.5B | 20% | 6% | — | 84% |
+| Gemma 3 1B | 11% | 13% | — | 46% |
+| Gemma 3 270M | 2% | 6% | — | 10% |
+| Qwen3.5-2B | 0% | 0% | — | 38% |
+
+- 返信の下書きと雑談は、Gemma 4 E4B / E2B なら使えます。雑談はシステムプロンプトで「短く」と伝える必要があります。
+- 事実を答えさせるのは、Gemma 4 E4B 以外は当てになりません。
+- 小さいモデルは「誰が誰に言っているか」を取り違えます。Qwen3.5-2B は中国語の文字が混ざります。
+
+```bash
+npm run download-chat-models
+LLAMA_SERVER=/path/to/llama-server npm run ja-chat              # --short で「短く」と指示した版
+LLAMA_SERVER=/path/to/llama-server node scripts/ja-facts.mjs
+node scripts/ja-chat-judge.mjs pack 1 && node scripts/ja-chat-judge.mjs score
+```
+
 ## 構成
 
 ```
@@ -327,11 +357,17 @@ public/data/benchmark.json  ミニベンチマーク用データセット（手�
 public/data/presets.js      検索・類似度のサンプル（「苦手な例」を含む）
 public/data/failure-probes.json  失敗パターン別の問題集（16 種類・219 問、正解のない 18 問、無関係な候補）
 public/lib/probe-metrics.js 問題集の採点（違いを無視した組、AUC、振り分け、文字の重なり）
+public/data/ja-chat.json, ja-facts.json  日本語の返信・会話の問題と、事実の問題
+public/lib/ja-checks.js     日本語の回答の機械的なチェック（他の言語の混入、繰り返し、字数・箇条書き、必要な語）
 scripts/download-model.mjs  モデルのダウンロード
 scripts/make-report.mjs     E2E 結果の集計
 scripts/benchmark.mjs       ミニベンチマークの精度を Node（CPU）で測る
 scripts/failure-probes.mjs  問題集を EmbeddingGemma（プロンプト・次元・候補の数を変えて）や d1-3B で解く
 scripts/failure-report.mjs  問題集と長い文書の結果の比較表
+scripts/ja-chat.mjs         スマホ向けの小型モデルに日本語の返信・会話・書き換え・知識の問題を解かせる（llama-server）
+scripts/ja-chat-judge.mjs   その回答をモデル名を伏せて採点用に並べ、採点結果を集計する
+scripts/ja-facts.mjs        日常の事実 10 問を、乱数の種を変えて 5 回ずつ聞く
+scripts/download-chat-models.mjs, scripts/lib/chat-models.mjs  比べた 7 モデル（GGUF、リビジョン固定、推奨サンプリング）
 scripts/long-text.mjs       正解の文書を無関係な文書の中に埋めたときの検索精度
 scripts/record-demo.mjs     字幕つき操作動画の録画
 scripts/lib/video.mjs       録画の後処理（カット・早送り・MP4 変換）とサーバー起動

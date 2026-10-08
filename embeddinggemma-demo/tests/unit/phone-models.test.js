@@ -35,6 +35,11 @@ test('WebGPU variants need an adapter, f16 when quantized to q4f16, and room for
   // EmbeddingGemma 2's 8-bit embedding table is exactly 128 MiB, so it fits WebGPU's default limits too.
   assert.deepEqual(assessVariant(findVariant('embeddinggemma-2:q8:webgpu').variant, phone({ ...defaultLimits, f16: false })), { level: 'yes', reasons: [] });
   assert.equal(assessVariant(findVariant('embeddinggemma-2:q4:webgpu').variant, phone(null)).level, 'no');
+
+  // The Japanese LFM2.5 model's 67 MB embedding table fits the default limits; q4f16 also needs f16.
+  const lfmJp = findVariant('lfm2.5-1.2b-jp:q4:webgpu').variant;
+  assert.deepEqual(assessVariant(lfmJp, phone({ ...defaultLimits, f16: false })), { level: 'yes', reasons: [] });
+  assert.equal(assessVariant(findVariant('lfm2.5-1.2b-jp:q4f16:webgpu').variant, phone({ ...defaultLimits, f16: false })).level, 'no');
 });
 
 test('WASM variants are judged by size, and phones get a warning for large ones', () => {

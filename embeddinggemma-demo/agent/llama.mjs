@@ -43,16 +43,19 @@ export const LIQUID_MODELS = {
   },
 };
 
-export const ggufPath = (key) => `${MODELS_DIR}${LIQUID_MODELS[key].repo}/${LIQUID_MODELS[key].file}`;
+/** Where the GGUF file of a model spec ({ repo, file }) lives. */
+export const ggufFile = (spec) => `${MODELS_DIR}${spec.repo}/${spec.file}`;
 
 /** One llama-server process per model, on its own port. */
 export class LlamaServer {
-  static async start(key, port) {
-    const model = ggufPath(key);
-    if (!existsSync(model)) throw new Error(`${model} is missing: run node scripts/download-liquid-models.mjs`);
+  /** `model` is a key of LIQUID_MODELS or a spec { repo, file, args } (scripts/lib/chat-models.mjs). */
+  static async start(model, port) {
+    const spec = typeof model === 'string' ? LIQUID_MODELS[model] : model;
+    const file = ggufFile(spec);
+    if (!existsSync(file)) throw new Error(`${file} is missing: download it first (scripts/download-*-models.mjs)`);
     const self = new LlamaServer();
     self.url = `http://127.0.0.1:${port}`;
-    const args = ['-m', model, '--host', '127.0.0.1', '--port', String(port), '-np', '1', ...LIQUID_MODELS[key].args];
+    const args = ['-m', file, '--host', '127.0.0.1', '--port', String(port), '-np', '1', ...spec.args];
     self.process = spawn(process.env.LLAMA_SERVER ?? 'llama-server', args, { stdio: ['ignore', 'ignore', 'pipe'] });
     let log = '';
     self.process.stderr.on('data', (chunk) => {
@@ -64,11 +67,11 @@ export class LlamaServer {
       const status = await fetch(`${self.url}/health`).then((response) => response.status, () => 0);
       if (status === 200) return self;
       if (await Promise.race([exited.then(() => true), new Promise((resolve) => setTimeout(() => resolve(false), 200))])) {
-        throw new Error(`llama-server exited while loading ${LIQUID_MODELS[key].file}:\n${log}`);
+        throw new Error(`llama-server exited while loading ${spec.file}:\n${log}`);
       }
     }
     self.stop();
-    throw new Error(`llama-server did not become ready for ${LIQUID_MODELS[key].file}`);
+    throw new Error(`llama-server did not become ready for ${spec.file}`);
   }
 
   async post(path, body) {
@@ -78,8 +81,12 @@ export class LlamaServer {
     return json;
   }
 
+  /** Stops the server; resolves once the process has exited (its port is free again). */
   stop() {
-    this.process?.kill();
+    if (!this.process || this.process.exitCode !== null || this.process.signalCode !== null) return Promise.resolve();
+    const exited = new Promise((resolve) => this.process.once('exit', resolve));
+    this.process.kill();
+    return exited;
   }
 }
 

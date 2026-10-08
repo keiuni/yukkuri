@@ -11,9 +11,11 @@
 // practical for the small models.
 import { MODELS } from './model-config.js';
 
-// Every text-generation test answers this, greedily, with at most GENERATION_MAX_TOKENS tokens.
+// The text-generation tests answer this (or what the user types instead), greedily, with at most
+// GENERATION_MAX_TOKENS tokens unless a longer answer is chosen.
 export const GENERATION_PROMPT = 'スマートフォンの中でAIを動かす利点を、短く3つ挙げてください。';
 export const GENERATION_MAX_TOKENS = 64;
+export const GENERATION_TOKEN_CHOICES = [64, 160, 320];
 
 export const PHONE_MODELS = [
   {
@@ -71,6 +73,20 @@ export const PHONE_MODELS = [
     variants: [
       { dtype: 'q4f16', device: 'webgpu', sizeMB: 763, maxTensorMB: 151, f16: true },
       { dtype: 'q4', device: 'webgpu', sizeMB: 859, maxTensorMB: 151 },
+    ],
+  },
+  {
+    key: 'lfm2.5-1.2b-jp',
+    label: 'LFM2.5-1.2B-JP（Liquid AI・日本語）',
+    task: 'text-generation',
+    id: 'LiquidAI/LFM2.5-1.2B-JP-202606-ONNX',
+    revision: '01b5a0a33d22253d5ee52b367d2375eeb113b7cd',
+    sessions: ['model'],
+    // A Japanese chat model (2026-06). Its 4-bit embedding table (65536 x 2048) is the largest weight, and
+    // it is stored as GatherBlockQuantized, so it needs WebGPU.
+    variants: [
+      { dtype: 'q4f16', device: 'webgpu', sizeMB: 744, maxTensorMB: 67, f16: true },
+      { dtype: 'q4', device: 'webgpu', sizeMB: 834, maxTensorMB: 67 },
     ],
   },
   {

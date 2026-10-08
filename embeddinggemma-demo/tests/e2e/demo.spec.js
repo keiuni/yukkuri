@@ -279,6 +279,8 @@ test('phone check page rates every model for this browser without loading any', 
   await page.goto('/phone.html');
   await expect(page.locator('#device-status')).toHaveAttribute('data-state', 'ready');
   await expect(page.locator('#device-facts div')).toHaveCount(8);
+  await expect(page.locator('#prompt')).toHaveValue(/スマートフォンの中でAIを動かす利点/);
+  await expect(page.locator('#max-tokens')).toHaveValue('64');
   const levels = await page.locator('.model-row .chip').evaluateAll((chips) => chips.map((chip) => chip.dataset.level));
   expect(levels.length).toBeGreaterThan(5);
   expect(levels.every((level) => ['yes', 'maybe', 'no'].includes(level))).toBe(true);

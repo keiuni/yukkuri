@@ -1,6 +1,6 @@
 // Runs one test of the phone check page. The page starts a new worker for every test and
 // terminates it afterwards, so the memory a model used is given back before the next one.
-// Protocol: { type: 'run', key, useLocal } -> { type: 'progress', ... }* -> { type: 'done', result } | { type: 'error', message }
+// Protocol: { type: 'run', key, useLocal, useCache, maxTokens, prompt } -> { type: 'progress', ... }* -> { type: 'done', result } | { type: 'error', message }
 import { TRANSFORMERS_URL, documentPrompt, queryPrompt, textOnlyConfig } from './lib/model-config.js';
 import { GENERATION_MAX_TOKENS, GENERATION_PROMPT, findVariant } from './lib/phone-models.js';
 
@@ -44,7 +44,7 @@ function progressTracker(report) {
   };
 }
 
-async function runGeneration(lib, model, variant, progress, report, maxTokens) {
+async function runGeneration(lib, model, variant, progress, report, maxTokens, prompt) {
   const { AutoModelForCausalLM, AutoTokenizer, TextStreamer } = lib;
   const options = { revision: model.revision, progress_callback: progress.callback };
   const started = performance.now();
@@ -54,7 +54,7 @@ async function runGeneration(lib, model, variant, progress, report, maxTokens) {
   const downloadMs = progress.downloadMs(started);
   report({ phase: 'generate', text: '' });
 
-  const inputs = tokenizer.apply_chat_template([{ role: 'user', content: GENERATION_PROMPT }], {
+  const inputs = tokenizer.apply_chat_template([{ role: 'user', content: prompt || GENERATION_PROMPT }], {
     add_generation_prompt: true,
     return_dict: true,
     enable_thinking: false,
@@ -142,7 +142,7 @@ self.addEventListener('message', async ({ data }) => {
     lib.env.useBrowserCache = data.useCache !== false;
     const progress = progressTracker(report);
     const run = model.task === 'embedding' ? runEmbedding : runGeneration;
-    const result = await run(lib, model, variant, progress, report, data.maxTokens ?? GENERATION_MAX_TOKENS);
+    const result = await run(lib, model, variant, progress, report, data.maxTokens ?? GENERATION_MAX_TOKENS, data.prompt);
     self.postMessage({
       type: 'done',
       result: { ...result, downloadedBytes: progress.totalBytes(), transformersVersion: lib.env.version },

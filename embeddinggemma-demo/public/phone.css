@@ -33,6 +33,16 @@ body {
   overflow-wrap: anywhere;
 }
 
+.ask {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ask select {
+  justify-self: start;
+}
+
 .model-list,
 .result-list {
   list-style: none;

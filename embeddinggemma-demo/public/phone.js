@@ -4,6 +4,7 @@
 import {
   GENERATION_MAX_TOKENS,
   GENERATION_PROMPT,
+  GENERATION_TOKEN_CHOICES,
   LITERT_GEMMA4,
   PHONE_MODELS,
   assessLiteRt,
@@ -20,7 +21,7 @@ const results = [];
 const useLocal = ['127.0.0.1', 'localhost'].includes(location.hostname);
 const params = new URLSearchParams(location.search);
 // ?tokens=16 shortens the generation test (scripts/phone-check.mjs uses it on the slow software GPU).
-const maxTokens = Number(params.get('tokens')) || GENERATION_MAX_TOKENS;
+const initialTokens = Number(params.get('tokens')) || GENERATION_MAX_TOKENS;
 // ?cache=0 skips the browser's Cache Storage copy of the model files (to measure its cost).
 const useCache = params.get('cache') !== '0';
 
@@ -199,7 +200,16 @@ function renderModels(device) {
   rows.push(liteRt);
 
   $('model-list').replaceChildren(...rows);
-  $('prompt-note').textContent = `文章生成は「${GENERATION_PROMPT}」に最大 ${maxTokens} トークンで答えさせ、読み込み時間・最初の 1 文字までの時間・1 秒あたりのトークン数を測ります。`;
+  $('prompt-note').textContent = '文章生成のモデルは、上の「聞くこと」に答えます（毎回同じ答えになる貪欲法）。読み込み時間・最初の 1 トークンまでの時間・1 秒あたりのトークン数も測ります。';
+}
+
+function initPrompt() {
+  $('prompt').value = GENERATION_PROMPT;
+  const choices = [...new Set([...GENERATION_TOKEN_CHOICES, initialTokens])].sort((a, b) => a - b);
+  $('max-tokens').replaceChildren(
+    ...choices.map((tokens) => Object.assign(document.createElement('option'), { value: String(tokens), textContent: `${tokens} トークン` })),
+  );
+  $('max-tokens').value = String(initialTokens);
 }
 
 function setRunning(key, running) {
@@ -253,7 +263,14 @@ function renderResult(result) {
   const output = document.createElement('p');
   output.className = 'output';
   output.textContent = result.ok ? result.text : result.error;
-  li.append(title, numbers, output);
+  li.append(title, numbers);
+  if (result.prompt) {
+    const asked = document.createElement('p');
+    asked.className = 'muted small';
+    asked.textContent = `聞いたこと: ${result.prompt}`;
+    li.append(asked);
+  }
+  li.append(output);
   $('result-list').prepend(li);
 }
 
@@ -261,6 +278,8 @@ function renderResult(result) {
 function runTest(key) {
   const [modelKey, dtype, device] = key.split(':');
   const model = PHONE_MODELS.find((m) => m.key === modelKey);
+  const prompt = model.task === 'embedding' ? null : $('prompt').value.trim() || GENERATION_PROMPT;
+  const maxTokens = Number($('max-tokens').value) || GENERATION_MAX_TOKENS;
   setRunning(key, true);
   updateProgress(key, { phase: 'download', loaded: 0, total: 1 });
   const started = performance.now();
@@ -268,7 +287,7 @@ function runTest(key) {
     const worker = new Worker(new URL('./phone.worker.js', import.meta.url), { type: 'module' });
     const finish = (outcome) => {
       worker.terminate();
-      const result = { key, label: model.label, dtype, device, elapsedMs: performance.now() - started, ...outcome };
+      const result = { key, label: model.label, dtype, device, prompt, elapsedMs: performance.now() - started, ...outcome };
       results.push(result);
       renderResult(result);
       setRunning(key, false);
@@ -281,7 +300,7 @@ function runTest(key) {
     });
     // A worker that runs out of memory usually dies without a message.
     worker.addEventListener('error', (event) => finish({ ok: false, error: event.message || 'ワーカーが停止しました（メモリ不足の可能性）' }));
-    worker.postMessage({ type: 'run', key, useLocal, useCache, maxTokens });
+    worker.postMessage({ type: 'run', key, useLocal, useCache, maxTokens, prompt });
   });
 }
 
@@ -298,6 +317,7 @@ $('copy-results').addEventListener('click', async () => {
   }, 2000);
 });
 
+initPrompt();
 const ready = detectDevice().then((device) => {
   window.phoneCheck.device = device;
   renderDevice(device);

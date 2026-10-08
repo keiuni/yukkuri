@@ -1,0 +1,17 @@
+{
+  "name": "Japanese everyday facts",
+  "version": 1,
+  "description": "Short questions with one well-known answer, asked several times with different seeds (scripts/ja-facts.mjs) to see how often a small model gets them right. The first five are the knowledge items of ja-chat.json. `includes` works as there.",
+  "items": [
+    { "id": "fuji", "prompt": "日本で一番高い山の名前と、その高さを教えてください。", "includes": [["富士山"], ["3776", "3,776", "３７７６", "３，７７６"]] },
+    { "id": "shinkansen", "prompt": "東京駅から新大阪駅まで、新幹線のぞみでだいたい何時間かかりますか？", "includes": [["2時間半", "2時間30分", "2時間20分", "2時間25分", "2時間27分", "2時間21分", "2時間22分", "2時間24分", "２時間半", "２時間30分", "二時間半", "約2.5時間", "2.5時間"]] },
+    { "id": "proverb", "prompt": "ことわざ「情けは人のためならず」の意味を、短く説明してください。", "includes": [["自分"], ["返", "巡", "めぐ", "報"]] },
+    { "id": "mutsuki", "prompt": "1月の和風月名（昔の呼び方）は何ですか？", "includes": [["睦月", "むつき"]] },
+    { "id": "kodomo", "prompt": "日本の祝日「こどもの日」は何月何日ですか？", "includes": [["5月5日", "５月５日", "五月五日"]] },
+    { "id": "shinano", "prompt": "日本で一番長い川の名前は何ですか？", "includes": [["信濃川"]] },
+    { "id": "fuji-pref", "prompt": "富士山は何県と何県にまたがっていますか？", "includes": [["静岡"], ["山梨"]] },
+    { "id": "geshi", "prompt": "一年で昼がいちばん長い日を、二十四節気で何といいますか？", "includes": [["夏至"]] },
+    { "id": "skytree", "prompt": "東京スカイツリーの高さは何メートルですか？", "includes": [["634", "６３４"]] },
+    { "id": "capital", "prompt": "日本の首都はどこですか？", "includes": [["東京"]] }
+  ]
+}

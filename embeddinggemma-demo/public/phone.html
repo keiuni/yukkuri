@@ -35,6 +35,16 @@
           <h2 id="models-heading">モデル</h2>
           <p class="muted small">判定は公開されている上限値からの目安です。実際に試すと確かめられます。</p>
         </div>
+        <div class="ask">
+          <label class="field">
+            <span>文章生成のモデルに聞くこと</span>
+            <textarea id="prompt" rows="2"></textarea>
+          </label>
+          <label class="field">
+            <span>答えの長さ（最大トークン数）</span>
+            <select id="max-tokens"></select>
+          </label>
+        </div>
         <ul class="model-list" id="model-list"></ul>
         <p class="muted small" id="prompt-note"></p>
       </section>

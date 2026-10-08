@@ -1,0 +1,144 @@
+{
+  "name": "Japanese replies and small talk",
+  "version": 1,
+  "description": "Everyday Japanese writing a phone assistant would be asked for: replies to messages (casual and polite), short three-turn conversations (the model's own replies are fed back), rewrites with a format to follow, and a few facts. `includes` lists groups of strings; every group must match at least one of its strings. Hand-written for this demo.",
+  "categories": [
+    { "id": "reply", "label": "メッセージの返信" },
+    { "id": "conversation", "label": "会話（3 往復）" },
+    { "id": "rewrite", "label": "書き換え・形式の指示" },
+    { "id": "knowledge", "label": "知識" }
+  ],
+  "items": [
+    {
+      "id": "reply-nomikai",
+      "category": "reply",
+      "prompt": "友だちから「明日の飲み会、19時に新宿でいい？」とLINEが来ました。行けるけれど少し遅れるかもしれない、と伝える返信を、友だちらしい口調で短く書いてください。返信の文だけを書いてください。"
+    },
+    {
+      "id": "reply-boss",
+      "category": "reply",
+      "prompt": "上司から「明日の会議の資料、今日中に送ってもらえますか？」とメールが来ました。承知したことを伝える返信を、丁寧な敬語で短く書いてください。返信の文だけを書いてください。"
+    },
+    {
+      "id": "reply-reschedule",
+      "category": "reply",
+      "prompt": "取引先から「来週火曜日の14時にお打ち合わせはいかがでしょうか」と連絡がありました。火曜日は都合が悪いので、水曜日か木曜日の午後を提案する丁寧な返信を書いてください。返信の文だけを書いてください。"
+    },
+    {
+      "id": "reply-late",
+      "category": "reply",
+      "prompt": "電車が遅れていて、待ち合わせに10分ほど遅れそうです。先輩に送るお詫びのメッセージを書いてください。メッセージの文だけを書いてください。"
+    },
+    {
+      "id": "reply-thanks",
+      "category": "reply",
+      "prompt": "友だちが誕生日プレゼントにマグカップをくれました。お礼のLINEを、くだけた口調で書いてください。メッセージの文だけを書いてください。"
+    },
+    {
+      "id": "reply-shop",
+      "category": "reply",
+      "prompt": "あなたはネットショップの店員です。お客様から「注文した商品がまだ届きません」と問い合わせがありました。お詫びと、配送状況を確認して改めて連絡することを伝える返信を書いてください。返信の文だけを書いてください。"
+    },
+    {
+      "id": "reply-decline",
+      "category": "reply",
+      "prompt": "友だちから「週末キャンプ行かない？」と誘われました。予定があって行けないけれど、また誘ってほしい、という返信を書いてください。返信の文だけを書いてください。"
+    },
+    {
+      "id": "reply-dinner",
+      "category": "reply",
+      "prompt": "母から「今日の夕飯、何がいい？」とLINEが来ました。カレーがいい、と短く返信してください。返信の文だけを書いてください。"
+    },
+    {
+      "id": "rewrite-summary",
+      "category": "rewrite",
+      "prompt": "次の文を30文字以内で要約してください。要約だけを書いてください。\n本日、駅前の図書館は設備点検のため臨時休館となります。本の返却は入口横の返却ポストをご利用ください。明日からは通常どおり開館します。",
+      "maxChars": 30,
+      "includes": [["休館", "休み", "閉館"]]
+    },
+    {
+      "id": "rewrite-keigo",
+      "category": "rewrite",
+      "prompt": "次の文を、目上の人に送る丁寧な敬語に直してください。直した文だけを書いてください。\n明日行けないから、資料だけ送っといて。"
+    },
+    {
+      "id": "rewrite-thanks3",
+      "category": "rewrite",
+      "prompt": "「ありがとう」を、丁寧な言い方、ふつうの言い方、くだけた言い方の3通りで書いてください。"
+    },
+    {
+      "id": "rewrite-translate",
+      "category": "rewrite",
+      "prompt": "次の英文を自然な日本語に訳してください。訳文だけを書いてください。\nI'll be a little late. Please go ahead and start without me.",
+      "includes": [["遅れ", "遅く"], ["始め", "始まっ", "先に"]]
+    },
+    {
+      "id": "rewrite-bullets",
+      "category": "rewrite",
+      "prompt": "朝ごはんのメニュー案を、箇条書きで3つ挙げてください。説明は書かないでください。",
+      "bullets": 3
+    },
+    {
+      "id": "knowledge-fuji",
+      "category": "knowledge",
+      "prompt": "日本で一番高い山の名前と、その高さを教えてください。",
+      "includes": [["富士山"], ["3776", "3,776", "３７７６", "３，７７６"]]
+    },
+    {
+      "id": "knowledge-shinkansen",
+      "category": "knowledge",
+      "prompt": "東京駅から新大阪駅まで、新幹線のぞみでだいたい何時間かかりますか？",
+      "includes": [["2時間半", "2時間30分", "2時間20分", "2時間25分", "2時間27分", "2時間21分", "2時間22分", "2時間24分", "２時間半", "２時間30分", "二時間半", "約2.5時間", "2.5時間"]]
+    },
+    {
+      "id": "knowledge-proverb",
+      "category": "knowledge",
+      "prompt": "ことわざ「情けは人のためならず」の意味を、短く説明してください。",
+      "includes": [["自分"], ["返", "巡", "めぐ", "報"]]
+    },
+    {
+      "id": "knowledge-mutsuki",
+      "category": "knowledge",
+      "prompt": "1月の和風月名（昔の呼び方）は何ですか？",
+      "includes": [["睦月", "むつき"]]
+    },
+    {
+      "id": "knowledge-kodomo",
+      "category": "knowledge",
+      "prompt": "日本の祝日「こどもの日」は何月何日ですか？",
+      "includes": [["5月5日", "５月５日", "五月五日"]]
+    }
+  ],
+  "conversations": [
+    {
+      "id": "conv-running",
+      "category": "conversation",
+      "about": "自己紹介を覚えているか",
+      "turns": [
+        { "prompt": "はじめまして、田中といいます。最近ランニングを始めました。" },
+        { "prompt": "初心者は、1回にどれくらい走ればいいですか？" },
+        { "prompt": "ところで、私の名前を覚えていますか？", "includes": [["田中"]] }
+      ]
+    },
+    {
+      "id": "conv-kyoto",
+      "category": "conversation",
+      "about": "旅行の相談で話がつながるか",
+      "turns": [
+        { "prompt": "週末に京都へ1泊2日で旅行します。おすすめの過ごし方を教えてください。" },
+        { "prompt": "紅葉を見るなら、何月ごろがいいですか？", "includes": [["11月", "１１月", "十一月"]] },
+        { "prompt": "じゃあ、11月の下旬に行くなら、混雑を避けるコツはありますか？" }
+      ]
+    },
+    {
+      "id": "conv-cheerup",
+      "category": "conversation",
+      "about": "落ち込んだ人への受け答え",
+      "turns": [
+        { "prompt": "今日、仕事でミスをして落ち込んでいます。" },
+        { "prompt": "どうすれば気持ちを切り替えられるかな。" },
+        { "prompt": "ありがとう、少し楽になった。" }
+      ]
+    }
+  ]
+}
