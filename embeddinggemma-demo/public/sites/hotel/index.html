@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>たびのやど｜宿泊予約</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="../sites.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="logo" href="index.html">たびのやど</a>
+      <nav aria-label="サイトメニュー">
+        <a href="#">ログイン</a>
+        <a href="#">予約の確認・キャンセル</a>
+        <a href="#">クーポン</a>
+        <a href="#">ポイント</a>
+        <a href="#">ヘルプ</a>
+      </nav>
+    </header>
+    <main>
+      <h1>宿・ホテルをさがす</h1>
+      <form class="panel" action="results.html" method="get">
+        <div class="form-grid">
+          <label class="field">目的地・エリア
+            <input type="text" name="city" placeholder="例：京都、箱根、札幌" autocomplete="off" />
+          </label>
+          <label class="field">チェックイン
+            <select name="checkin">
+              <option value="2026-12-15">12月15日（火）</option>
+              <option value="2026-12-16">12月16日（水）</option>
+              <option value="2026-12-17">12月17日（木）</option>
+              <option value="2026-12-18">12月18日（金）</option>
+              <option value="2026-12-19">12月19日（土）</option>
+              <option value="2026-12-20">12月20日（日）</option>
+              <option value="2026-12-21">12月21日（月）</option>
+              <option value="2026-12-22">12月22日（火）</option>
+              <option value="2026-12-23">12月23日（水）</option>
+              <option value="2026-12-24">12月24日（木）</option>
+              <option value="2026-12-25">12月25日（金）</option>
+              <option value="2026-12-26">12月26日（土）</option>
+            </select>
+          </label>
+          <label class="field">泊数
+            <select name="nights">
+              <option value="1">1泊</option>
+              <option value="2" selected>2泊</option>
+              <option value="3">3泊</option>
+              <option value="4">4泊</option>
+              <option value="5">5泊</option>
+            </select>
+          </label>
+          <label class="field">大人
+            <select name="adults">
+              <option value="1">1名</option>
+              <option value="2">2名</option>
+              <option value="3">3名</option>
+              <option value="4">4名</option>
+            </select>
+          </label>
+          <label class="field">子ども
+            <select name="children">
+              <option value="0">0名</option>
+              <option value="1">1名</option>
+              <option value="2">2名</option>
+            </select>
+          </label>
+          <label class="field">部屋数
+            <select name="rooms">
+              <option value="1">1室</option>
+              <option value="2">2室</option>
+            </select>
+          </label>
+          <button class="primary" type="submit">この条件で検索する</button>
+        </div>
+      </form>
+
+      <section class="panel">
+        <h2>人気の行き先</h2>
+        <a class="button" href="results.html?city=東京">東京</a>
+        <a class="button" href="results.html?city=大阪">大阪</a>
+        <a class="button" href="results.html?city=沖縄">沖縄</a>
+        <a class="button" href="results.html?city=札幌">札幌</a>
+      </section>
+      <section class="panel">
+        <h2>年末年始セール</h2>
+        <p class="muted">12月28日〜1月3日のご宿泊が最大20%オフ。</p>
+        <a class="button" href="#">セール対象の宿を見る</a>
+      </section>
+    </main>
+  </body>
+</html>

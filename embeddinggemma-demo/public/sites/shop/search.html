@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>検索結果｜みどりマート</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="../sites.css" />
+    <style>
+      .search { display: flex; gap: 8px; flex: 1 1 320px; max-width: 460px; }
+      .search input { flex: 1; }
+      .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap; }
+      .item { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+      .item .price { font-weight: 800; }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="logo" href="index.html">みどりマート</a>
+      <form class="search" action="search.html" method="get" role="search">
+        <input type="search" name="q" placeholder="キーワードで商品をさがす" aria-label="商品検索" />
+        <button type="submit">検索</button>
+      </form>
+      <nav aria-label="アカウントメニュー">
+        <a href="#">カテゴリ一覧</a>
+        <a href="#">タイムセール</a>
+        <a href="orders.html">注文履歴</a>
+        <a href="#">マイページ</a>
+        <a href="#">カート（2）</a>
+      </nav>
+    </header>
+    <main>
+      <h1 id="heading">検索結果</h1>
+      <div class="toolbar">
+        <span class="muted" id="count"></span>
+        <label class="field" style="flex-direction: row; align-items: center; gap: 8px">表示順
+          <select id="sort">
+            <option value="relevance">関連度順</option>
+            <option value="price_asc">価格の安い順</option>
+            <option value="price_desc">価格の高い順</option>
+            <option value="review">レビューの多い順</option>
+            <option value="new">新着順</option>
+          </select>
+        </label>
+      </div>
+      <div id="list"></div>
+    </main>
+    <script>
+      const PRODUCTS = [
+        { name: 'ワイヤレスイヤホン ノイズキャンセリング NC-500', price: 12800, reviews: 842, kw: 'ワイヤレスイヤホン イヤホン bluetooth' },
+        { name: 'ワイヤレスイヤホン スポーツ 防水 SP-20', price: 4980, reviews: 1290, kw: 'ワイヤレスイヤホン イヤホン bluetooth' },
+        { name: 'ワイヤレスイヤホン 長時間再生 LB-36', price: 6980, reviews: 455, kw: 'ワイヤレスイヤホン イヤホン bluetooth' },
+        { name: '完全ワイヤレスイヤホン 小型 MINI', price: 3480, reviews: 2210, kw: 'ワイヤレスイヤホン イヤホン bluetooth' },
+        { name: '有線イヤホン ハイレゾ対応 W-1', price: 2980, reviews: 310, kw: 'イヤホン 有線' },
+        { name: 'イヤホン ケース シリコン', price: 980, reviews: 120, kw: 'イヤホン ケース' },
+        { name: 'ステンレス 電気ケトル 1.0L', price: 3980, reviews: 980, kw: 'ケトル' },
+      ];
+      const params = new URLSearchParams(location.search);
+      const query = (params.get('q') ?? '').trim();
+      document.querySelector('.search input').value = query;
+      document.getElementById('heading').textContent = query ? `「${query}」の検索結果` : 'すべての商品';
+      const sort = document.getElementById('sort');
+      sort.value = params.get('sort') ?? 'relevance';
+
+      function render() {
+        const words = query.split(/\s+/).filter(Boolean);
+        let items = PRODUCTS.filter((item) => words.every((word) => item.kw.includes(word) || item.name.includes(word)));
+        const order = {
+          relevance: () => 0,
+          price_asc: (a, b) => a.price - b.price,
+          price_desc: (a, b) => b.price - a.price,
+          review: (a, b) => b.reviews - a.reviews,
+          new: () => 0,
+        }[sort.value];
+        items = [...items].sort(order);
+        const next = new URLSearchParams(location.search);
+        next.set('sort', sort.value);
+        history.replaceState(null, '', `?${next}`);
+        document.getElementById('count').textContent = `${items.length}件`;
+        document.getElementById('list').replaceChildren(
+          ...items.map((item) => {
+            const row = document.createElement('article');
+            row.className = 'panel item';
+            const info = document.createElement('div');
+            const name = Object.assign(document.createElement('h3'), { textContent: item.name });
+            name.style.margin = '0';
+            info.append(name, Object.assign(document.createElement('span'), { className: 'muted', textContent: `レビュー ${item.reviews}件` }));
+            const buy = document.createElement('div');
+            buy.append(
+              Object.assign(document.createElement('div'), { className: 'price', textContent: `¥${item.price.toLocaleString()}` }),
+              Object.assign(document.createElement('button'), { type: 'button', textContent: 'カートに入れる' }),
+            );
+            row.append(info, buy);
+            return row;
+          }),
+        );
+      }
+      sort.addEventListener('change', render);
+      render();
+    </script>
+  </body>
+</html>

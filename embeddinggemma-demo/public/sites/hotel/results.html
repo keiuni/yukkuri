@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>検索結果｜たびのやど</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="../sites.css" />
+    <style>
+      .layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 18px; align-items: start; }
+      .filters label { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+      .toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+      .hotel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; }
+      .hotel h3 { margin: 0; font-size: 1.05rem; }
+      .price { font-weight: 800; font-size: 1.1rem; text-align: right; }
+      .rating { color: var(--accent); font-weight: 700; }
+      .actions { display: flex; gap: 8px; justify-content: flex-end; }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="logo" href="index.html">たびのやど</a>
+      <nav aria-label="サイトメニュー">
+        <a href="#">ログイン</a>
+        <a href="#">予約の確認・キャンセル</a>
+        <a href="#">クーポン</a>
+        <a href="#">ヘルプ</a>
+      </nav>
+    </header>
+    <main>
+      <h1 id="summary">検索結果</h1>
+      <p class="muted"><a href="index.html">条件を変更する</a></p>
+      <div class="layout">
+        <aside class="panel filters" aria-label="絞り込み">
+          <h2>こだわり条件で絞り込む</h2>
+          <label><input type="checkbox" data-filter="nonsmoking" />禁煙ルーム</label>
+          <label><input type="checkbox" data-filter="breakfast" />朝食付き</label>
+          <label><input type="checkbox" data-filter="dinner" />夕食付き</label>
+          <label><input type="checkbox" data-filter="onsen" />温泉・大浴場あり</label>
+          <label><input type="checkbox" data-filter="parking" />駐車場あり</label>
+          <label><input type="checkbox" data-filter="freecancel" />キャンセル無料</label>
+        </aside>
+        <section>
+          <div class="toolbar">
+            <span class="muted" id="count"></span>
+            <label class="field" style="flex-direction: row; align-items: center; gap: 8px">並び替え
+              <select id="sort">
+                <option value="recommended">おすすめ順</option>
+                <option value="price_asc">料金が安い順</option>
+                <option value="price_desc">料金が高い順</option>
+                <option value="rating">評価が高い順</option>
+                <option value="station">駅から近い順</option>
+              </select>
+            </label>
+          </div>
+          <div id="list"></div>
+        </section>
+      </div>
+    </main>
+    <script>
+      const HOTELS = [
+        { city: '京都', name: '鴨川テラスホテル', area: '四条河原町', price: 18400, rating: 4.3, walk: 4, tags: ['nonsmoking', 'breakfast', 'freecancel'] },
+        { city: '京都', name: '嵐山 渡月庵', area: '嵐山', price: 32800, rating: 4.8, walk: 12, tags: ['breakfast', 'dinner', 'onsen'] },
+        { city: '京都', name: 'ホテル京都駅前グランデ', area: '京都駅', price: 12600, rating: 4.0, walk: 2, tags: ['nonsmoking', 'breakfast', 'parking'] },
+        { city: '京都', name: '祇園 白川の宿', area: '祇園', price: 24500, rating: 4.6, walk: 6, tags: ['nonsmoking', 'breakfast', 'dinner'] },
+        { city: '京都', name: '烏丸ビジネスイン', area: '烏丸御池', price: 8900, rating: 3.7, walk: 1, tags: ['nonsmoking', 'freecancel'] },
+        { city: '京都', name: '東山 町家ステイ', area: '東山', price: 21000, rating: 4.7, walk: 9, tags: ['nonsmoking', 'freecancel'] },
+        { city: '京都', name: '伏見 酒蔵の宿', area: '伏見', price: 15800, rating: 4.4, walk: 7, tags: ['breakfast', 'onsen', 'parking'] },
+        { city: '京都', name: '二条城レジデンス', area: '二条', price: 19800, rating: 4.5, walk: 5, tags: ['nonsmoking', 'breakfast', 'parking', 'freecancel'] },
+        { city: '大阪', name: '心斎橋ベイホテル', area: '心斎橋', price: 13800, rating: 4.1, walk: 3, tags: ['nonsmoking', 'breakfast'] },
+        { city: '大阪', name: '梅田スカイイン', area: '梅田', price: 11200, rating: 3.9, walk: 2, tags: ['nonsmoking'] },
+        { city: '東京', name: '浅草リバーサイド', area: '浅草', price: 16500, rating: 4.2, walk: 5, tags: ['breakfast', 'onsen'] },
+        { city: '東京', name: '銀座ステーションホテル', area: '銀座', price: 25400, rating: 4.4, walk: 1, tags: ['nonsmoking', 'breakfast'] },
+        { city: '札幌', name: '大通公園ホテル', area: '大通', price: 10800, rating: 4.0, walk: 3, tags: ['nonsmoking', 'breakfast', 'parking'] },
+        { city: '沖縄', name: '那覇ビーチリゾート', area: '那覇', price: 22800, rating: 4.3, walk: 15, tags: ['breakfast', 'parking'] },
+      ];
+      const params = new URLSearchParams(location.search);
+      const city = (params.get('city') ?? '').trim();
+      const DATE_LABELS = { '2026-12-19': '12月19日（土）', '2026-12-20': '12月20日（日）' };
+
+      const checkin = params.get('checkin');
+      const summaryParts = [
+        city || 'すべてのエリア',
+        checkin ? `${DATE_LABELS[checkin] ?? checkin.slice(5).replace('-', '月') + '日'}から${params.get('nights') ?? 1}泊` : null,
+        params.get('adults') ? `大人${params.get('adults')}名` : null,
+      ].filter(Boolean);
+      document.getElementById('summary').textContent = `検索結果：${summaryParts.join('・')}`;
+
+      const sort = document.getElementById('sort');
+      sort.value = params.get('sort') ?? 'recommended';
+      for (const box of document.querySelectorAll('[data-filter]')) {
+        box.checked = (params.get('filters') ?? '').split(',').includes(box.dataset.filter);
+      }
+
+      function render() {
+        const active = [...document.querySelectorAll('[data-filter]:checked')].map((box) => box.dataset.filter);
+        let hotels = HOTELS.filter((hotel) => !city || hotel.city === city).filter((hotel) => active.every((tag) => hotel.tags.includes(tag)));
+        const order = {
+          recommended: () => 0,
+          price_asc: (a, b) => a.price - b.price,
+          price_desc: (a, b) => b.price - a.price,
+          rating: (a, b) => b.rating - a.rating,
+          station: (a, b) => a.walk - b.walk,
+        }[sort.value];
+        hotels = [...hotels].sort(order);
+
+        const next = new URLSearchParams(location.search);
+        if (active.length) next.set('filters', active.join(','));
+        else next.delete('filters');
+        next.set('sort', sort.value);
+        history.replaceState(null, '', `?${next}`);
+
+        document.getElementById('count').textContent = `${hotels.length}件の宿が見つかりました`;
+        const labels = { nonsmoking: '禁煙', breakfast: '朝食付き', dinner: '夕食付き', onsen: '温泉', parking: '駐車場', freecancel: 'キャンセル無料' };
+        document.getElementById('list').replaceChildren(
+          ...hotels.map((hotel) => {
+            const card = document.createElement('article');
+            card.className = 'panel hotel';
+            card.innerHTML = `
+              <div><h3></h3><div class="muted"></div><div class="tags"></div></div>
+              <div><div class="price"></div><div class="rating"></div></div>
+              <div class="actions" style="grid-column: 1 / -1">
+                <button type="button">詳細を見る</button>
+                <button type="button" class="primary">空室を確認する</button>
+              </div>`;
+            card.querySelector('h3').textContent = hotel.name;
+            card.querySelector('.muted').textContent = `${hotel.city}・${hotel.area}　最寄り駅から徒歩${hotel.walk}分`;
+            card.querySelector('.tags').replaceChildren(
+              ...hotel.tags.map((tag) => Object.assign(document.createElement('span'), { className: 'tag', textContent: labels[tag] })),
+            );
+            card.querySelector('.price').textContent = `¥${hotel.price.toLocaleString()}〜`;
+            card.querySelector('.rating').textContent = `★ ${hotel.rating.toFixed(1)}`;
+            return card;
+          }),
+        );
+      }
+      sort.addEventListener('change', render);
+      for (const box of document.querySelectorAll('[data-filter]')) box.addEventListener('change', render);
+      render();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>アカウント設定｜ノートクラウド</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="../sites.css" />
+    <style>
+      .layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 18px; align-items: start; }
+      .side a { display: block; padding: 6px 0; text-decoration: none; color: var(--ink-2); }
+      .row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 0; border-top: 1px solid var(--line); }
+      .row:first-of-type { border-top: none; }
+      .row .desc { font-size: 0.8rem; color: var(--ink-2); }
+      .switch { appearance: none; width: 44px; height: 24px; border-radius: 12px; background: #c9c6bb; position: relative; cursor: pointer; margin: 0; }
+      .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: left 0.15s; }
+      .switch:checked { background: var(--brand); }
+      .switch:checked::after { left: 23px; }
+      .footer-actions { display: flex; gap: 10px; align-items: center; }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="logo" href="index.html">ノートクラウド</a>
+      <nav aria-label="サイトメニュー">
+        <a href="#">ノート</a>
+        <a href="#">共有</a>
+        <a href="#">ヘルプ</a>
+        <a href="#">ログアウト</a>
+      </nav>
+    </header>
+    <main>
+      <h1>アカウント設定</h1>
+      <div id="saved"></div>
+      <div class="layout">
+        <nav class="panel side" aria-label="設定メニュー">
+          <a href="#profile">プロフィール</a>
+          <a href="#notify">通知</a>
+          <a href="#display">表示</a>
+          <a href="#security">セキュリティ</a>
+          <a href="#billing">お支払い</a>
+        </nav>
+        <form id="form" onsubmit="return false">
+          <section class="panel" id="notify">
+            <h2>通知</h2>
+            <div class="row"><div>メール通知<div class="desc">共有やコメントをメールでお知らせします</div></div><input class="switch" type="checkbox" role="switch" name="email" aria-label="メール通知" checked /></div>
+            <div class="row"><div>プッシュ通知<div class="desc">スマートフォンアプリに通知します</div></div><input class="switch" type="checkbox" role="switch" name="push" aria-label="プッシュ通知" checked /></div>
+            <div class="row"><div>ニュースレター<div class="desc">新機能やキャンペーンのお知らせ</div></div><input class="switch" type="checkbox" role="switch" name="newsletter" aria-label="ニュースレター" /></div>
+          </section>
+          <section class="panel" id="display">
+            <h2>表示</h2>
+            <div class="row"><label for="lang">表示言語</label>
+              <select id="lang" name="lang">
+                <option value="ja">日本語</option>
+                <option value="en">English</option>
+                <option value="zh">中文（简体）</option>
+                <option value="ko">한국어</option>
+              </select>
+            </div>
+            <div class="row"><label for="theme">テーマ</label>
+              <select id="theme" name="theme">
+                <option value="system">システムの設定に合わせる</option>
+                <option value="light">ライト</option>
+                <option value="dark">ダーク</option>
+              </select>
+            </div>
+            <div class="row"><label for="fontsize">文字の大きさ</label>
+              <select id="fontsize" name="fontsize">
+                <option value="s">小</option>
+                <option value="m" selected>標準</option>
+                <option value="l">大</option>
+              </select>
+            </div>
+          </section>
+          <section class="panel" id="security">
+            <h2>セキュリティ</h2>
+            <div class="row"><div>二段階認証<div class="desc">ログイン時に確認コードを入力します</div></div><input class="switch" type="checkbox" role="switch" name="twofactor" aria-label="二段階認証" /></div>
+            <div class="row"><div>パスワード</div><button type="button">パスワードを変更</button></div>
+          </section>
+          <section class="panel footer-actions">
+            <button class="primary" type="button" id="save">変更を保存</button>
+            <button type="button" id="cancel">キャンセル</button>
+            <span style="flex: 1"></span>
+            <button class="danger" type="button" id="delete">アカウントを削除</button>
+          </section>
+        </form>
+      </div>
+    </main>
+    <script>
+      const form = document.getElementById('form');
+      document.getElementById('save').addEventListener('click', () => {
+        const data = new FormData(form);
+        const state = {
+          email: form.email.checked,
+          push: form.push.checked,
+          newsletter: form.newsletter.checked,
+          twofactor: form.twofactor.checked,
+          lang: data.get('lang'),
+          theme: data.get('theme'),
+          fontsize: data.get('fontsize'),
+        };
+        const query = new URLSearchParams(Object.entries(state).map(([key, value]) => [key, String(value)]));
+        query.set('saved', '1');
+        history.replaceState(null, '', `?${query}`);
+        document.getElementById('saved').innerHTML = '<p class="notice">設定を保存しました。</p>';
+      });
+      document.getElementById('cancel').addEventListener('click', () => location.reload());
+      document.getElementById('delete').addEventListener('click', () => {
+        history.replaceState(null, '', '?deleted=1');
+        document.body.innerHTML = '<main><h1>アカウントを削除しました</h1></main>';
+      });
+    </script>
+  </body>
+</html>

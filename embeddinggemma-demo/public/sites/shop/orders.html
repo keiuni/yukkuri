@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>注文履歴｜みどりマート</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="../sites.css" />
+    <style>
+      .order { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; }
+      .order h2 { margin: 0; }
+      .order .buttons { display: flex; flex-direction: column; gap: 6px; }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="logo" href="index.html">みどりマート</a>
+      <nav aria-label="アカウントメニュー">
+        <a href="#">カテゴリ一覧</a>
+        <a href="#">タイムセール</a>
+        <a href="orders.html">注文履歴</a>
+        <a href="#">マイページ</a>
+        <a href="#">カート（2）</a>
+      </nav>
+    </header>
+    <main>
+      <h1>注文履歴</h1>
+      <p class="muted">過去6か月のご注文を表示しています。</p>
+      <div id="orders"></div>
+    </main>
+    <script>
+      const ORDERS = [
+        { id: '503-2026100201', date: '2026年10月2日', items: '北欧風 マグカップ ×2', total: 2560, status: '配達済み' },
+        { id: '503-2026091402', date: '2026年9月14日', items: 'ワイヤレスイヤホン スポーツ 防水 SP-20', total: 4980, status: '配達済み' },
+        { id: '503-2026082103', date: '2026年8月21日', items: 'コットン バスタオル 2枚組', total: 2480, status: '配達済み' },
+        { id: '503-2026070304', date: '2026年7月3日', items: 'ステンレス 電気ケトル 1.0L', total: 3980, status: '配達済み' },
+      ];
+      document.getElementById('orders').replaceChildren(
+        ...ORDERS.map((order) => {
+          const card = document.createElement('article');
+          card.className = 'panel order';
+          const info = document.createElement('div');
+          info.append(
+            Object.assign(document.createElement('h2'), { textContent: `${order.date}のご注文` }),
+            Object.assign(document.createElement('div'), { className: 'muted', textContent: `注文番号 ${order.id}・${order.status}` }),
+            Object.assign(document.createElement('div'), { textContent: `${order.items}　合計 ¥${order.total.toLocaleString()}` }),
+          );
+          const buttons = document.createElement('div');
+          buttons.className = 'buttons';
+          buttons.append(
+            Object.assign(document.createElement('a'), { className: 'button', href: '#', textContent: '注文の詳細を見る' }),
+            Object.assign(document.createElement('a'), { className: 'button primary', href: `receipt.html?order=${order.id}`, textContent: '領収書を発行する' }),
+            Object.assign(document.createElement('a'), { className: 'button', href: '#', textContent: 'もう一度購入する' }),
+          );
+          card.append(info, buttons);
+          return card;
+        }),
+      );
+    </script>
+  </body>
+</html>

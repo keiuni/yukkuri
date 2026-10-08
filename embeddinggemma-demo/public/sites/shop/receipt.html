@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>領収書｜みどりマート</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="../sites.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="logo" href="index.html">みどりマート</a>
+      <nav aria-label="アカウントメニュー">
+        <a href="orders.html">注文履歴</a>
+        <a href="#">マイページ</a>
+      </nav>
+    </header>
+    <main>
+      <h1>領収書</h1>
+      <p class="notice">領収書（PDF）を発行しました。</p>
+      <section class="panel">
+        <p>注文番号：<strong id="order"></strong></p>
+        <p class="muted">宛名や但し書きはマイページの「領収書の設定」から変更できます。</p>
+      </section>
+    </main>
+    <script>
+      document.getElementById('order').textContent = new URLSearchParams(location.search).get('order') ?? '不明';
+    </script>
+  </body>
+</html>

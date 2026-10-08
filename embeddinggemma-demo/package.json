@@ -13,9 +13,13 @@
     "test": "node --test \"tests/unit/**/*.test.js\"",
     "test:e2e": "playwright test",
     "report": "node scripts/make-report.mjs",
-    "record": "node scripts/record-demo.mjs"
+    "record": "node scripts/record-demo.mjs",
+    "agent": "node agent/run.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "4.3.1"
   }
 }

@@ -10,13 +10,13 @@
 // Output: test-output/videos/<nn>-<scenario>.mp4 (H.264 via ffmpeg; WebM is kept if
 // ffmpeg is missing). Needs the q8, q4 and fp32 models in ./models:
 //   npm run download-model -- fp32 q8 q4
-import { execFile, spawn } from 'node:child_process';
 import { mkdir, rename, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
 
 import { chromium } from '@playwright/test';
+
+import { startServer, toMp4 } from './lib/video.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUTPUT_DIR = path.join(ROOT, 'test-output', 'videos');
@@ -24,9 +24,6 @@ const RAW_DIR = path.join(OUTPUT_DIR, 'raw');
 const PORT = Number(process.env.PORT ?? 5174);
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 const VIEWPORT = { width: 1280, height: 720 };
-// Waits are played at least FAST times faster, and never take more than MAX_FAST_SECONDS of video.
-const FAST = 4;
-const MAX_FAST_SECONDS = 5;
 
 // ---------------------------------------------------------------- overlay drawn into the page
 
@@ -520,62 +517,7 @@ const SCENARIOS = [
   },
 ];
 
-// ---------------------------------------------------------------- video post-processing
-
-const run = promisify(execFile);
-
-function editFilter(edits) {
-  const pieces = [];
-  let cursor = 0;
-  for (const { start, end, factor } of [...edits].sort((a, b) => a.start - b.start)) {
-    if (start - cursor > 0.05) pieces.push({ start: cursor, end: start, factor: 1 });
-    const speed = factor === 'fast' ? Math.max(FAST, (end - start) / MAX_FAST_SECONDS) : factor;
-    if (Number.isFinite(speed) && end - start > 0.05) pieces.push({ start, end, factor: speed.toFixed(3) });
-    cursor = Math.max(cursor, end);
-  }
-  pieces.push({ start: cursor, end: null, factor: 1 });
-
-  const split = `[0:v]split=${pieces.length}${pieces.map((_, i) => `[in${i}]`).join('')}`;
-  const segments = pieces.map(({ start, end, factor }, i) => {
-    const trim = end === null ? `trim=start=${start.toFixed(3)}` : `trim=start=${start.toFixed(3)}:end=${end.toFixed(3)}`;
-    return `[in${i}]${trim},setpts=(PTS-STARTPTS)/${factor}[seg${i}]`;
-  });
-  const concat = `${pieces.map((_, i) => `[seg${i}]`).join('')}concat=n=${pieces.length}:v=1:a=0,fps=25,format=yuv420p[out]`;
-  return [split, ...segments, concat].join(';');
-}
-
-async function toMp4(webm, mp4, edits) {
-  try {
-    await run('ffmpeg', [
-      '-y', '-loglevel', 'error', '-i', webm,
-      '-filter_complex', editFilter(edits), '-map', '[out]',
-      '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-movflags', '+faststart',
-      mp4,
-    ]);
-    return mp4;
-  } catch (error) {
-    const kept = path.join(OUTPUT_DIR, path.basename(webm));
-    await rename(webm, kept);
-    console.warn(`ffmpeg failed (${error.message.split('\n')[0]}); kept the WebM instead`);
-    return kept;
-  }
-}
-
 // ---------------------------------------------------------------- main
-
-async function startServer() {
-  const server = spawn(process.execPath, ['server.mjs'], { cwd: ROOT, env: { ...process.env, PORT: String(PORT) }, stdio: 'ignore' });
-  for (let attempt = 0; attempt < 50; attempt++) {
-    try {
-      if ((await fetch(BASE_URL)).ok) return server;
-    } catch {
-      // not listening yet
-    }
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  server.kill();
-  throw new Error(`The demo server did not start on ${BASE_URL}`);
-}
 
 const wanted = process.argv.slice(2);
 const scenarios = wanted.length > 0 ? SCENARIOS.filter((scenario) => wanted.includes(scenario.id)) : SCENARIOS;
@@ -585,7 +527,7 @@ if (scenarios.length === 0) {
 }
 
 await mkdir(RAW_DIR, { recursive: true });
-const server = await startServer();
+const server = await startServer(ROOT, PORT);
 const browser = await chromium.launch();
 try {
   for (const scenario of scenarios) {

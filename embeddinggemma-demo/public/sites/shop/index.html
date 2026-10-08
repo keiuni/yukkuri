@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>みどりマート｜暮らしの通販</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="../sites.css" />
+    <style>
+      .search { display: flex; gap: 8px; flex: 1 1 320px; max-width: 460px; }
+      .search input { flex: 1; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+      .product .price { font-weight: 800; }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="logo" href="index.html">みどりマート</a>
+      <form class="search" action="search.html" method="get" role="search">
+        <input type="search" name="q" placeholder="キーワードで商品をさがす" aria-label="商品検索" />
+        <button type="submit">検索</button>
+      </form>
+      <nav aria-label="アカウントメニュー">
+        <a href="#">カテゴリ一覧</a>
+        <a href="#">タイムセール</a>
+        <a href="orders.html">注文履歴</a>
+        <a href="#">マイページ</a>
+        <a href="#">カート（2）</a>
+      </nav>
+    </header>
+    <main>
+      <section class="panel">
+        <h2>本日のおすすめ</h2>
+        <div class="grid">
+          <article class="panel product"><h3>コットン バスタオル 2枚組</h3><p class="price">¥2,480</p><button type="button">カートに入れる</button></article>
+          <article class="panel product"><h3>ステンレス 電気ケトル 1.0L</h3><p class="price">¥3,980</p><button type="button">カートに入れる</button></article>
+          <article class="panel product"><h3>北欧風 マグカップ</h3><p class="price">¥1,280</p><button type="button">カートに入れる</button></article>
+          <article class="panel product"><h3>折りたたみ 傘 晴雨兼用</h3><p class="price">¥1,980</p><button type="button">カートに入れる</button></article>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>お困りのときは</h2>
+        <a href="#">よくある質問</a>　<a href="#">返品・交換について</a>　<a href="#">配送について</a>　<a href="#">お問い合わせ</a>
+      </section>
+    </main>
+  </body>
+</html>
