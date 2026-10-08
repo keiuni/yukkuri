@@ -91,6 +91,28 @@ npm run report                                  # test-output/REPORT.md を生�
 
 スクリーンショットと数値は `test-output/`（git 管理外）に出力されます。
 
+## 操作動画の録画
+
+E2E とは別に、人が見る用の操作動画（字幕・カーソル・クリック表示つき、1280×720 の MP4）を録画できます。
+モデルの読み込み待ちはカットするか早送り（4 倍速以上、1 回あたり最大 5 秒）にします。MP4 への変換には libx264 入りの ffmpeg が必要です（無ければ WebM のまま残します）。
+
+```bash
+npm run download-model -- fp32 q8 q4
+npm run record                            # 全シナリオ → test-output/videos/*.mp4
+npm run record -- similarity benchmark    # 指定したシナリオだけ
+```
+
+| シナリオ | 内容 |
+| --- | --- |
+| `load-and-search` | モデルを UI から読み込み、モデルカードの例を検索。768 → 128 次元に減らして再検索 |
+| `japanese-search` | FAQ に言い回しを変えた質問を入力（当たる例と外れる例） |
+| `cross-lingual-and-miss` | 日本語クエリで英語文書を検索。アニメ制作用語で外れる例 |
+| `similarity` | 類似度マトリクスを計算し、セルをホバー。英文を 1 行足して再計算 |
+| `precision` | q8 → fp32 → q4 と読み込み直し、モデルカードの値との差を比べる |
+| `benchmark` | ミニベンチマークを実行し、結果を順に見る |
+
+字幕の数値はその場の結果から作るので、結果が変わっても字幕と画面が食い違いません。録画中は CPU を録画にも使うため、速度の数値は参考程度にしてください。
+
 ## 構成
 
 ```
@@ -104,6 +126,7 @@ public/data/benchmark.json  ミニベンチマーク用データセット（手�
 public/data/presets.js      検索・類似度のサンプル
 scripts/download-model.mjs  モデルのダウンロード
 scripts/make-report.mjs     E2E 結果の集計
+scripts/record-demo.mjs     字幕つき操作動画の録画
 tests/unit, tests/e2e       単体テスト、Playwright テスト
 ```
 
