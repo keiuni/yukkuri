@@ -1,0 +1,700 @@
+{
+  "name": "EmbeddingGemma failure probes",
+  "version": 1,
+  "description": "Minimal sets for finding where an embedding model picks the wrong candidate. Each set has 2-8 candidates that differ in one thing (a negation, a number, the direction of an action...) and one query per candidate, so a model that ignores the difference picks the same candidate every time and gets at most one query of the set right. 'ui' sets use the candidate wording of the browser agent (agent/actions.mjs) and steps as queries; 'doc' sets use short sentences and questions. Hand-written for this demo.",
+  "categories": [
+    { "id": "negation", "label": "否定", "description": "「〜しない」「〜できない」など、否定の有無だけが違う" },
+    { "id": "antonym", "label": "反対の操作", "description": "上げる／下げる、入れる／外すなど反対の意味の候補。手順は画面と別の言い方" },
+    { "id": "number", "label": "数字（同じ書き方）", "description": "手順と候補で数字の書き方が同じ（日付・番号・階数など）" },
+    { "id": "number-convert", "label": "数字（書き換えが必要）", "description": "ふたり→2名、午後3時→15時、千円→1,000円、two→2 など" },
+    { "id": "range", "label": "以上・以下", "description": "範囲の向き、数値が範囲に入るかどうか" },
+    { "id": "role", "label": "役割・向き", "description": "誰が誰に、どこからどこへ（語順や助詞の違い）" },
+    { "id": "relative-date", "label": "相対的な日付", "description": "明日・先月・来年など。今日の日付や曜日は、それぞれの手順の中に書いてある" },
+    { "id": "superlative", "label": "最上級・比較", "description": "いちばん安い・新しいなど。比べる数値は候補に書いてある" },
+    { "id": "multi-constraint", "label": "2つの条件", "description": "月と商品、色とサイズなど、2つの条件の組み合わせ" },
+    { "id": "lexical-trap", "label": "同じ言葉の罠", "description": "正解は言い換えで、不正解のほうが手順と同じ言葉を含む" },
+    { "id": "intent", "label": "遠回しな言い方", "description": "「寒い」→暖房のように、意図を読み取る必要がある" },
+    { "id": "entity", "label": "似た名前・略称", "description": "佐藤一郎／佐藤二郎、NHK→日本放送協会、ひらがなの地名など" },
+    { "id": "icon", "label": "記号だけのボタン", "description": "×・⚙・🔍 など、名前が記号だけのボタン" },
+    { "id": "cross-lingual", "label": "英語の画面（対照）", "description": "日本語の手順と英語のボタンや文書" },
+    { "id": "synonym", "label": "言い換え（対照）", "description": "サインイン→ログイン、スマホ→スマートフォンなど" },
+    { "id": "typo", "label": "表記ゆれ・誤字", "description": "ひらがな、半角カナ、形の似た別の字" }
+  ],
+  "sets": [
+    {
+      "id": "neg-save-close", "category": "negation", "style": "ui",
+      "candidates": ["ボタン「保存して閉じる」を押す", "ボタン「保存せずに閉じる」を押す"],
+      "queries": [{ "text": "変更を保存してから閉じる", "answer": 0 }, { "text": "変更を保存しないで閉じる", "answer": 1 }]
+    },
+    {
+      "id": "neg-gift", "category": "negation", "style": "ui",
+      "candidates": ["ラジオボタン「ギフト包装する」を選ぶ（ギフト設定）", "ラジオボタン「ギフト包装しない」を選ぶ（ギフト設定）"],
+      "queries": [{ "text": "プレゼント用に包んでもらう", "answer": 0 }, { "text": "包装はしなくていい", "answer": 1 }]
+    },
+    {
+      "id": "neg-receipt", "category": "negation", "style": "ui",
+      "candidates": ["ラジオボタン「領収書が必要」を選ぶ", "ラジオボタン「領収書は不要」を選ぶ"],
+      "queries": [{ "text": "領収書をもらう", "answer": 0 }, { "text": "領収書はもらわない", "answer": 1 }]
+    },
+    {
+      "id": "neg-agree", "category": "negation", "style": "ui",
+      "candidates": ["ボタン「同意する」を押す（利用規約）", "ボタン「同意しない」を押す（利用規約）"],
+      "queries": [{ "text": "利用規約に同意する", "answer": 0 }, { "text": "利用規約に同意しない", "answer": 1 }]
+    },
+    {
+      "id": "neg-smoking", "category": "negation", "style": "doc",
+      "candidates": ["このホテルは全館禁煙で、喫煙所もありません。", "このホテルには喫煙できる客室があります。"],
+      "queries": [{ "text": "タバコが吸える宿", "answer": 1 }, { "text": "タバコが吸えない宿", "answer": 0 }]
+    },
+    {
+      "id": "neg-sunday", "category": "negation", "style": "doc",
+      "candidates": ["この店は日曜日も営業しています。", "この店は日曜日は営業していません。"],
+      "queries": [{ "text": "日曜日に開いている店", "answer": 0 }, { "text": "日曜日に開いていない店", "answer": 1 }]
+    },
+    {
+      "id": "neg-return", "category": "negation", "style": "doc",
+      "candidates": ["この商品は到着後30日以内なら返品できます。", "この商品はセール品のため返品できません。"],
+      "queries": [{ "text": "返品できる商品", "answer": 0 }, { "text": "返品できない商品", "answer": 1 }]
+    },
+    {
+      "id": "neg-spicy", "category": "negation", "style": "doc",
+      "candidates": ["このカレーは激辛で、辛いものが好きな人におすすめです。", "このカレーは辛さを抑えてあり、辛いものが苦手な人でも食べられます。"],
+      "queries": [{ "text": "辛い料理が食べたい", "answer": 0 }, { "text": "辛くない料理が食べたい", "answer": 1 }]
+    },
+    {
+      "id": "neg-offline", "category": "negation", "style": "doc",
+      "candidates": ["このアプリはインターネットにつながっていなくても使えます。", "このアプリはインターネットにつながっていないと使えません。"],
+      "queries": [{ "text": "圏外でも使えるアプリ", "answer": 0 }, { "text": "ネット接続が必須のアプリ", "answer": 1 }]
+    },
+    {
+      "id": "neg-drowsy", "category": "negation", "style": "doc",
+      "candidates": ["この薬は眠くなる成分を含むため、車の運転前には飲まないでください。", "この薬は眠くなる成分を含まないため、車の運転前でも飲めます。"],
+      "queries": [{ "text": "飲むと眠くなる薬", "answer": 0 }, { "text": "飲んでも眠くならない薬", "answer": 1 }]
+    },
+
+    {
+      "id": "ant-volume", "category": "antonym", "style": "ui",
+      "candidates": ["ボタン「音量を上げる」を押す", "ボタン「音量を下げる」を押す"],
+      "queries": [{ "text": "音を大きくする", "answer": 0 }, { "text": "音を小さくする", "answer": 1 }]
+    },
+    {
+      "id": "ant-zoom", "category": "antonym", "style": "ui",
+      "candidates": ["ボタン「拡大」を押す（地図）", "ボタン「縮小」を押す（地図）"],
+      "queries": [{ "text": "地図をズームインする", "answer": 0 }, { "text": "地図をズームアウトする", "answer": 1 }]
+    },
+    {
+      "id": "ant-login", "category": "antonym", "style": "ui",
+      "candidates": ["リンク「ログイン」を開く", "リンク「ログアウト」を開く"],
+      "queries": [{ "text": "サインインする", "answer": 0 }, { "text": "サインアウトする", "answer": 1 }]
+    },
+    {
+      "id": "ant-cart", "category": "antonym", "style": "ui",
+      "candidates": ["ボタン「カートに入れる」を押す", "ボタン「カートから削除」を押す"],
+      "queries": [{ "text": "この商品を買い物かごに追加する", "answer": 0 }, { "text": "この商品を買い物かごから外す", "answer": 1 }]
+    },
+    {
+      "id": "ant-sort", "category": "antonym", "style": "ui",
+      "candidates": ["ボタン「価格の安い順」を押す（並べ替え）", "ボタン「価格の高い順」を押す（並べ替え）"],
+      "queries": [{ "text": "値段が低いものから並べる", "answer": 0 }, { "text": "値段が張るものから並べる", "answer": 1 }]
+    },
+    {
+      "id": "ant-bank", "category": "antonym", "style": "ui",
+      "candidates": ["ボタン「入金」を押す", "ボタン「出金」を押す"],
+      "queries": [{ "text": "口座にお金を預ける", "answer": 0 }, { "text": "口座からお金を引き出す", "answer": 1 }]
+    },
+    {
+      "id": "ant-mute", "category": "antonym", "style": "ui",
+      "candidates": ["ボタン「ミュート」を押す", "ボタン「ミュート解除」を押す"],
+      "queries": [{ "text": "音を消す", "answer": 0 }, { "text": "消していた音を元に戻す", "answer": 1 }]
+    },
+    {
+      "id": "ant-page", "category": "antonym", "style": "ui",
+      "candidates": ["リンク「前へ」を開く（ページ送り）", "リンク「次へ」を開く（ページ送り）"],
+      "queries": [{ "text": "ひとつ前のページに戻る", "answer": 0 }, { "text": "続きのページを見る", "answer": 1 }]
+    },
+    {
+      "id": "ant-select-all", "category": "antonym", "style": "ui",
+      "candidates": ["ボタン「すべて選択」を押す", "ボタン「選択を解除」を押す"],
+      "queries": [{ "text": "全部にチェックを入れる", "answer": 0 }, { "text": "チェックを全部外す", "answer": 1 }]
+    },
+    {
+      "id": "ant-yen", "category": "antonym", "style": "doc",
+      "candidates": ["円高になると、海外から輸入する品物は安くなる。", "円安になると、海外から輸入する品物は高くなる。"],
+      "queries": [{ "text": "円の価値が上がると、輸入品の値段はどうなる？", "answer": 0 }, { "text": "円の価値が下がると、輸入品の値段はどうなる？", "answer": 1 }]
+    },
+
+    {
+      "id": "num-adults", "category": "number", "style": "ui",
+      "candidates": ["「大人」で「1名」を選ぶ", "「大人」で「2名」を選ぶ", "「大人」で「3名」を選ぶ", "「大人」で「4名」を選ぶ"],
+      "queries": [
+        { "text": "大人の人数を1名にする", "answer": 0 },
+        { "text": "大人の人数を2名にする", "answer": 1 },
+        { "text": "大人の人数を3名にする", "answer": 2 },
+        { "text": "大人の人数を4名にする", "answer": 3 }
+      ]
+    },
+    {
+      "id": "num-order-date", "category": "number", "style": "ui",
+      "candidates": [
+        "リンク「注文の詳細」を開く（2025年9月4日のご注文）",
+        "リンク「注文の詳細」を開く（2025年9月14日のご注文）",
+        "リンク「注文の詳細」を開く（2025年10月4日のご注文）",
+        "リンク「注文の詳細」を開く（2025年10月14日のご注文）"
+      ],
+      "queries": [
+        { "text": "9月4日の注文の詳細を開く", "answer": 0 },
+        { "text": "9月14日の注文の詳細を開く", "answer": 1 },
+        { "text": "10月4日の注文の詳細を開く", "answer": 2 },
+        { "text": "10月14日の注文の詳細を開く", "answer": 3 }
+      ]
+    },
+    {
+      "id": "num-order-id", "category": "number", "style": "ui",
+      "candidates": ["リンク「注文番号 503-2026091402」を開く", "リンク「注文番号 503-2026091420」を開く", "リンク「注文番号 503-2026019402」を開く"],
+      "queries": [
+        { "text": "注文番号503-2026091402を開く", "answer": 0 },
+        { "text": "注文番号503-2026091420を開く", "answer": 1 },
+        { "text": "注文番号503-2026019402を開く", "answer": 2 }
+      ]
+    },
+    {
+      "id": "num-iphone", "category": "number", "style": "doc",
+      "candidates": ["iPhone 15 は2023年9月に発売された。", "iPhone 16 は2024年9月に発売された。", "iPhone 17 は2025年9月に発売された。"],
+      "queries": [
+        { "text": "iPhone 15の発売時期", "answer": 0 },
+        { "text": "iPhone 16の発売時期", "answer": 1 },
+        { "text": "iPhone 17の発売時期", "answer": 2 }
+      ]
+    },
+    {
+      "id": "num-floor", "category": "number", "style": "ui",
+      "candidates": ["ボタン「3階」を押す（エレベーター）", "ボタン「13階」を押す（エレベーター）", "ボタン「30階」を押す（エレベーター）"],
+      "queries": [{ "text": "3階に行く", "answer": 0 }, { "text": "13階に行く", "answer": 1 }, { "text": "30階に行く", "answer": 2 }]
+    },
+    {
+      "id": "num-fiscal", "category": "number", "style": "doc",
+      "candidates": ["2024年度の売上高は120億円だった。", "2025年度の売上高は135億円だった。"],
+      "queries": [{ "text": "2024年度の売上高", "answer": 0 }, { "text": "2025年度の売上高", "answer": 1 }]
+    },
+    {
+      "id": "num-slot", "category": "number", "style": "ui",
+      "candidates": ["ラジオボタン「10:00〜12:00」を選ぶ（配達時間）", "ラジオボタン「14:00〜16:00」を選ぶ（配達時間）", "ラジオボタン「18:00〜20:00」を選ぶ（配達時間）"],
+      "queries": [
+        { "text": "配達時間を10:00〜12:00にする", "answer": 0 },
+        { "text": "配達時間を14:00〜16:00にする", "answer": 1 },
+        { "text": "配達時間を18:00〜20:00にする", "answer": 2 }
+      ]
+    },
+
+    {
+      "id": "conv-adults", "category": "number-convert", "style": "ui",
+      "candidates": ["「大人」で「1名」を選ぶ", "「大人」で「2名」を選ぶ", "「大人」で「3名」を選ぶ", "「大人」で「4名」を選ぶ"],
+      "queries": [
+        { "text": "大人をひとりにする", "answer": 0 },
+        { "text": "大人をふたりにする", "answer": 1 },
+        { "text": "大人を三人にする", "answer": 2 },
+        { "text": "大人を四人にする", "answer": 3 }
+      ]
+    },
+    {
+      "id": "conv-slot", "category": "number-convert", "style": "ui",
+      "candidates": ["ラジオボタン「10:00〜12:00」を選ぶ（配達時間）", "ラジオボタン「14:00〜16:00」を選ぶ（配達時間）", "ラジオボタン「18:00〜20:00」を選ぶ（配達時間）"],
+      "queries": [
+        { "text": "午前10時からの枠にする", "answer": 0 },
+        { "text": "午後2時からの枠にする", "answer": 1 },
+        { "text": "夕方6時からの枠にする", "answer": 2 }
+      ]
+    },
+    {
+      "id": "conv-price", "category": "number-convert", "style": "ui",
+      "candidates": [
+        "ボタン「1,000円以下」を押す（価格で絞り込み）",
+        "ボタン「1,000〜3,000円」を押す（価格で絞り込み）",
+        "ボタン「3,000〜5,000円」を押す（価格で絞り込み）",
+        "ボタン「5,000円以上」を押す（価格で絞り込み）"
+      ],
+      "queries": [
+        { "text": "千円以下に絞る", "answer": 0 },
+        { "text": "千円から三千円までに絞る", "answer": 1 },
+        { "text": "三千円から五千円までに絞る", "answer": 2 },
+        { "text": "五千円以上に絞る", "answer": 3 }
+      ]
+    },
+    {
+      "id": "conv-date", "category": "number-convert", "style": "ui",
+      "candidates": ["ラジオボタン「12月19日（土）」を選ぶ（チェックイン）", "ラジオボタン「12月20日（日）」を選ぶ（チェックイン）", "ラジオボタン「12月21日（月）」を選ぶ（チェックイン）"],
+      "queries": [
+        { "text": "チェックインを12/19にする", "answer": 0 },
+        { "text": "チェックインを12/20にする", "answer": 1 },
+        { "text": "チェックインを12/21にする", "answer": 2 }
+      ]
+    },
+    {
+      "id": "conv-meeting", "category": "number-convert", "style": "doc",
+      "candidates": ["会議は15時に始まります。", "会議は13時に始まります。", "会議は10時に始まります。"],
+      "queries": [
+        { "text": "午後3時に始まる会議", "answer": 0 },
+        { "text": "午後1時に始まる会議", "answer": 1 },
+        { "text": "午前10時に始まる会議", "answer": 2 }
+      ]
+    },
+    {
+      "id": "conv-tour-en", "category": "number-convert", "style": "doc",
+      "candidates": ["The tour is limited to two people.", "The tour is limited to four people.", "The tour is limited to eight people."],
+      "queries": [
+        { "text": "定員2名のツアー", "answer": 0 },
+        { "text": "定員4名のツアー", "answer": 1 },
+        { "text": "定員8名のツアー", "answer": 2 }
+      ]
+    },
+
+    {
+      "id": "range-filter", "category": "range", "style": "ui",
+      "candidates": ["ボタン「3,000円以下」を押す（価格で絞り込み）", "ボタン「3,000円以上」を押す（価格で絞り込み）"],
+      "queries": [{ "text": "3,000円までのものに絞る", "answer": 0 }, { "text": "3,000円からのものに絞る", "answer": 1 }]
+    },
+    {
+      "id": "range-shipping", "category": "range", "style": "doc",
+      "candidates": ["5,000円以上のご注文は送料無料です。", "5,000円未満のご注文には送料550円がかかります。"],
+      "queries": [{ "text": "6,000円分の買い物をしたときの送料", "answer": 0 }, { "text": "4,000円分の買い物をしたときの送料", "answer": 1 }]
+    },
+    {
+      "id": "range-age", "category": "range", "style": "doc",
+      "candidates": ["18歳以上の方は、本人確認書類があればお申し込みいただけます。", "18歳未満の方は、保護者の同意書が必要です。"],
+      "queries": [{ "text": "20歳の大学生が申し込むには？", "answer": 0 }, { "text": "16歳の高校生が申し込むには？", "answer": 1 }]
+    },
+    {
+      "id": "range-year", "category": "range", "style": "ui",
+      "candidates": ["ボタン「2020年より前」を押す（発行年）", "ボタン「2020年以降」を押す（発行年）"],
+      "queries": [{ "text": "2018年に出た本を探す", "answer": 0 }, { "text": "2023年に出た本を探す", "answer": 1 }]
+    },
+    {
+      "id": "range-temp", "category": "range", "style": "doc",
+      "candidates": ["最高気温が25度以上の日を夏日という。", "最低気温が0度未満の日を冬日という。"],
+      "queries": [{ "text": "気温が28度まで上がった日の呼び方", "answer": 0 }, { "text": "気温が氷点下3度まで下がった日の呼び方", "answer": 1 }]
+    },
+
+    {
+      "id": "role-transfer", "category": "role", "style": "doc",
+      "candidates": ["田中さんが佐藤さんに1万円を送金した。", "佐藤さんが田中さんに1万円を送金した。"],
+      "queries": [{ "text": "佐藤さんがお金を受け取った取引", "answer": 0 }, { "text": "田中さんがお金を受け取った取引", "answer": 1 }]
+    },
+    {
+      "id": "role-train", "category": "role", "style": "doc",
+      "candidates": ["東京発・新大阪行きの新幹線", "新大阪発・東京行きの新幹線"],
+      "queries": [{ "text": "東京から大阪へ向かう新幹線", "answer": 0 }, { "text": "大阪から東京へ向かう新幹線", "answer": 1 }]
+    },
+    {
+      "id": "role-fields", "category": "role", "style": "ui",
+      "candidates": ["入力欄「出発地」に入力する", "入力欄「到着地」に入力する"],
+      "queries": [
+        { "text": "名古屋から乗る（名古屋）", "answer": 0 },
+        { "text": "行き先を名古屋にする（名古屋）", "answer": 1 },
+        { "text": "博多を出発する（博多）", "answer": 0 },
+        { "text": "博多に向かう（博多）", "answer": 1 }
+      ]
+    },
+    {
+      "id": "role-chase", "category": "role", "style": "doc",
+      "candidates": ["犬が猫を追いかけている写真", "猫が犬を追いかけている写真"],
+      "queries": [{ "text": "猫が逃げている写真", "answer": 0 }, { "text": "犬が逃げている写真", "answer": 1 }]
+    },
+    {
+      "id": "role-match", "category": "role", "style": "doc",
+      "candidates": ["Aチームが3対1でBチームに勝った。", "Bチームが3対1でAチームに勝った。"],
+      "queries": [{ "text": "Bチームが負けた試合", "answer": 0 }, { "text": "Aチームが負けた試合", "answer": 1 }]
+    },
+    {
+      "id": "role-exchange", "category": "role", "style": "ui",
+      "candidates": ["ボタン「円をドルに両替」を押す", "ボタン「ドルを円に両替」を押す"],
+      "queries": [{ "text": "旅行に持っていくドルを用意する", "answer": 0 }, { "text": "余ったドルを日本円に戻す", "answer": 1 }]
+    },
+    {
+      "id": "role-gift", "category": "role", "style": "doc",
+      "candidates": ["親が子どもにスマートフォンを買ってあげた。", "子どもが親にスマートフォンをプレゼントした。"],
+      "queries": [{ "text": "親からスマホをもらった子ども", "answer": 0 }, { "text": "子どもからスマホをもらった親", "answer": 1 }]
+    },
+
+    {
+      "id": "date-month", "category": "relative-date", "style": "ui",
+      "candidates": ["リンク「2026年8月のご注文」を開く", "リンク「2026年9月のご注文」を開く", "リンク「2026年10月のご注文」を開く"],
+      "queries": [
+        { "text": "今日は2026年10月8日。先々月の注文を開く", "answer": 0 },
+        { "text": "今日は2026年10月8日。先月の注文を開く", "answer": 1 },
+        { "text": "今日は2026年10月8日。今月の注文を開く", "answer": 2 }
+      ]
+    },
+    {
+      "id": "date-delivery", "category": "relative-date", "style": "ui",
+      "candidates": [
+        "ラジオボタン「10月8日（木）」を選ぶ（お届け日）",
+        "ラジオボタン「10月9日（金）」を選ぶ（お届け日）",
+        "ラジオボタン「10月10日（土）」を選ぶ（お届け日）",
+        "ラジオボタン「10月12日（月・祝）」を選ぶ（お届け日）"
+      ],
+      "queries": [
+        { "text": "今日は木曜日。今日届けてもらう", "answer": 0 },
+        { "text": "今日は木曜日。明日届けてもらう", "answer": 1 },
+        { "text": "今日は木曜日。明後日届けてもらう", "answer": 2 },
+        { "text": "今日は木曜日。来週の月曜日に届けてもらう", "answer": 3 }
+      ]
+    },
+    {
+      "id": "date-year", "category": "relative-date", "style": "ui",
+      "candidates": ["リンク「2025年」を開く（年間スケジュール）", "リンク「2026年」を開く（年間スケジュール）", "リンク「2027年」を開く（年間スケジュール）"],
+      "queries": [
+        { "text": "今年は2026年。去年のスケジュールを開く", "answer": 0 },
+        { "text": "今年は2026年。今年のスケジュールを開く", "answer": 1 },
+        { "text": "今年は2026年。来年のスケジュールを開く", "answer": 2 }
+      ]
+    },
+    {
+      "id": "date-garbage", "category": "relative-date", "style": "doc",
+      "candidates": ["燃えるごみの収集日は月曜日と木曜日です。", "資源ごみの収集日は水曜日です。", "粗大ごみの収集日は金曜日です。"],
+      "queries": [
+        { "text": "今日は水曜日。明日出せるごみは？", "answer": 0 },
+        { "text": "今日は火曜日。明日出せるごみは？", "answer": 1 },
+        { "text": "今日は木曜日。明日出せるごみは？", "answer": 2 }
+      ]
+    },
+
+    {
+      "id": "sup-price", "category": "superlative", "style": "ui",
+      "candidates": [
+        "ボタン「カートに入れる」を押す（ワイヤレスイヤホン NC-500　¥12,800）",
+        "ボタン「カートに入れる」を押す（ワイヤレスイヤホン SP-20　¥4,980）",
+        "ボタン「カートに入れる」を押す（ワイヤレスイヤホン MINI　¥3,480）"
+      ],
+      "queries": [{ "text": "いちばん高いイヤホンをカートに入れる", "answer": 0 }, { "text": "いちばん安いイヤホンをカートに入れる", "answer": 2 }]
+    },
+    {
+      "id": "sup-rating", "category": "superlative", "style": "ui",
+      "candidates": ["リンク「ホテル嵐山」を開く（評価 4.2）", "リンク「京都駅前イン」を開く（評価 3.8）", "リンク「祇園の宿」を開く（評価 4.7）"],
+      "queries": [{ "text": "評価がいちばん低い宿を開く", "answer": 1 }, { "text": "評価がいちばん高い宿を開く", "answer": 2 }]
+    },
+    {
+      "id": "sup-mountain", "category": "superlative", "style": "doc",
+      "candidates": ["北岳の標高は3193メートルです。", "富士山の標高は3776メートルです。", "奥穂高岳の標高は3190メートルです。"],
+      "queries": [{ "text": "この中でいちばん高い山", "answer": 1 }, { "text": "この中でいちばん低い山", "answer": 2 }]
+    },
+    {
+      "id": "sup-order", "category": "superlative", "style": "ui",
+      "candidates": [
+        "リンク「領収書を発行する」を開く（2026年7月3日のご注文）",
+        "リンク「領収書を発行する」を開く（2026年10月2日のご注文）",
+        "リンク「領収書を発行する」を開く（2026年8月21日のご注文）"
+      ],
+      "queries": [{ "text": "いちばん古い注文の領収書を出す", "answer": 0 }, { "text": "いちばん新しい注文の領収書を出す", "answer": 1 }]
+    },
+    {
+      "id": "sup-plan", "category": "superlative", "style": "doc",
+      "candidates": ["Aプラン：月額980円、データ容量3GB", "Bプラン：月額2,980円、データ容量20GB", "Cプラン：月額4,980円、データ容量無制限"],
+      "queries": [{ "text": "月額がいちばん安いプラン", "answer": 0 }, { "text": "データをいちばんたくさん使えるプラン", "answer": 2 }]
+    },
+
+    {
+      "id": "multi-receipt", "category": "multi-constraint", "style": "ui",
+      "candidates": [
+        "リンク「領収書を発行する」を開く（2026年9月のご注文・イヤホン）",
+        "リンク「領収書を発行する」を開く（2026年9月のご注文・電気ケトル）",
+        "リンク「領収書を発行する」を開く（2026年8月のご注文・イヤホン）",
+        "リンク「領収書を発行する」を開く（2026年8月のご注文・電気ケトル）"
+      ],
+      "queries": [
+        { "text": "9月に買ったイヤホンの領収書を出す", "answer": 0 },
+        { "text": "9月に買った電気ケトルの領収書を出す", "answer": 1 },
+        { "text": "8月に買ったイヤホンの領収書を出す", "answer": 2 },
+        { "text": "8月に買った電気ケトルの領収書を出す", "answer": 3 }
+      ]
+    },
+    {
+      "id": "multi-size", "category": "multi-constraint", "style": "ui",
+      "candidates": ["「色・サイズ」で「黒・M」を選ぶ", "「色・サイズ」で「黒・L」を選ぶ", "「色・サイズ」で「白・M」を選ぶ", "「色・サイズ」で「白・L」を選ぶ"],
+      "queries": [
+        { "text": "黒のMサイズにする", "answer": 0 },
+        { "text": "黒のLサイズにする", "answer": 1 },
+        { "text": "白のMサイズにする", "answer": 2 },
+        { "text": "白のLサイズにする", "answer": 3 }
+      ]
+    },
+    {
+      "id": "multi-train", "category": "multi-constraint", "style": "doc",
+      "candidates": ["東京発・新大阪行き　9時00分発", "東京発・新大阪行き　10時00分発", "新大阪発・東京行き　9時00分発", "新大阪発・東京行き　10時00分発"],
+      "queries": [
+        { "text": "東京から大阪へ9時に出る列車", "answer": 0 },
+        { "text": "東京から大阪へ10時に出る列車", "answer": 1 },
+        { "text": "大阪から東京へ9時に出る列車", "answer": 2 },
+        { "text": "大阪から東京へ10時に出る列車", "answer": 3 }
+      ]
+    },
+    {
+      "id": "multi-plan", "category": "multi-constraint", "style": "ui",
+      "candidates": ["リンク「禁煙・朝食付き」を開く（宿泊プラン）", "リンク「禁煙・素泊まり」を開く（宿泊プラン）", "リンク「喫煙可・朝食付き」を開く（宿泊プラン）", "リンク「喫煙可・素泊まり」を開く（宿泊プラン）"],
+      "queries": [
+        { "text": "タバコを吸わない部屋で朝ごはん付きのプラン", "answer": 0 },
+        { "text": "禁煙で食事なしのプラン", "answer": 1 },
+        { "text": "喫煙できて朝食ありのプラン", "answer": 2 },
+        { "text": "喫煙できて食事なしのプラン", "answer": 3 }
+      ]
+    },
+
+    {
+      "id": "trap-boot", "category": "lexical-trap", "style": "doc",
+      "candidates": ["電源ボタンを押しても画面が真っ暗なままのときの対処法", "パソコンの立ち上がりを速くする設定"],
+      "queries": [{ "text": "パソコンが立ち上がらない", "answer": 0 }]
+    },
+    {
+      "id": "trap-withdraw", "category": "lexical-trap", "style": "doc",
+      "candidates": ["アカウントを削除する手順", "退会した後に再登録する方法"],
+      "queries": [{ "text": "退会したい", "answer": 0 }]
+    },
+    {
+      "id": "trap-password", "category": "lexical-trap", "style": "ui",
+      "candidates": ["リンク「パスワードをお忘れの方」を開く", "入力欄「パスワード」に入力する", "ボタン「パスワードを変更」を押す"],
+      "queries": [{ "text": "パスワードを思い出せない", "answer": 0 }]
+    },
+    {
+      "id": "trap-parcel", "category": "lexical-trap", "style": "doc",
+      "candidates": ["お届け予定日を過ぎても商品を受け取れていない場合のお問い合わせ", "荷物を届けてほしい時間帯を指定する方法"],
+      "queries": [{ "text": "注文した荷物が届かない", "answer": 0 }]
+    },
+    {
+      "id": "trap-allergy", "category": "lexical-trap", "style": "doc",
+      "candidates": ["毛がなく、アレルギーを起こしにくい動物として、爬虫類や魚がある。", "猫アレルギーの主な症状は、くしゃみや目のかゆみである。"],
+      "queries": [{ "text": "猫アレルギーでも飼えるペット", "answer": 0 }]
+    },
+    {
+      "id": "trap-umbrella", "category": "lexical-trap", "style": "doc",
+      "candidates": ["鉄道会社の忘れ物センターへの問い合わせ方法", "雨の日に電車が遅れたときの払い戻し"],
+      "queries": [{ "text": "電車に傘を置き忘れた", "answer": 0 }]
+    },
+    {
+      "id": "trap-cancel-order", "category": "lexical-trap", "style": "ui",
+      "candidates": ["ボタン「キャンセル手続きへ」を押す（ご注文）", "ボタン「注文を確定する」を押す", "リンク「注文履歴」を開く"],
+      "queries": [{ "text": "注文を取りやめる", "answer": 0 }]
+    },
+    {
+      "id": "trap-account", "category": "lexical-trap", "style": "doc",
+      "candidates": ["新規口座開設のお申し込み", "銀行口座の解約のお手続き"],
+      "queries": [{ "text": "銀行の口座を作りたい", "answer": 0 }]
+    },
+    {
+      "id": "trap-card", "category": "lexical-trap", "style": "doc",
+      "candidates": ["紛失・盗難時の利用停止のご連絡", "カードが使えないときの原因と対処"],
+      "queries": [{ "text": "カードをなくしたので使えないようにしたい", "answer": 0 }]
+    },
+    {
+      "id": "trap-weight", "category": "lexical-trap", "style": "doc",
+      "candidates": ["やせ型の人が太るための食事のとり方", "体重を減らすための食事のコツ"],
+      "queries": [{ "text": "体重を増やしたい", "answer": 0 }]
+    },
+
+    {
+      "id": "intent-aircon", "category": "intent", "style": "ui",
+      "candidates": ["ボタン「暖房」を押す（エアコン）", "ボタン「冷房」を押す（エアコン）", "ボタン「除湿」を押す（エアコン）", "ボタン「送風」を押す（エアコン）"],
+      "queries": [
+        { "text": "寒くて手がかじかむ", "answer": 0 },
+        { "text": "暑くて汗が止まらない", "answer": 1 },
+        { "text": "部屋がジメジメしている", "answer": 2 },
+        { "text": "温度は変えずに空気だけ回したい", "answer": 3 }
+      ]
+    },
+    {
+      "id": "intent-font", "category": "intent", "style": "ui",
+      "candidates": ["ボタン「文字を大きくする」を押す", "ボタン「文字を小さくする」を押す"],
+      "queries": [{ "text": "字が小さくて読みにくい", "answer": 0 }, { "text": "字が大きすぎて画面に収まらない", "answer": 1 }]
+    },
+    {
+      "id": "intent-notify", "category": "intent", "style": "ui",
+      "candidates": ["ボタン「通知をオンにする」を押す", "ボタン「通知をオフにする」を押す"],
+      "queries": [{ "text": "大事なお知らせを見逃したくない", "answer": 0 }, { "text": "通知がうるさくて困る", "answer": 1 }]
+    },
+    {
+      "id": "intent-theme", "category": "intent", "style": "ui",
+      "candidates": ["ラジオボタン「ダーク」を選ぶ（テーマ）", "ラジオボタン「ライト」を選ぶ（テーマ）"],
+      "queries": [{ "text": "夜に画面がまぶしい", "answer": 0 }, { "text": "黒い背景だと文字が読みにくい", "answer": 1 }]
+    },
+    {
+      "id": "intent-plan", "category": "intent", "style": "ui",
+      "candidates": ["ボタン「プランを解約する」を押す", "ボタン「プランを変更する」を押す", "ボタン「支払い方法を変更する」を押す"],
+      "queries": [
+        { "text": "もう使わないので、お金を払うのをやめたい", "answer": 0 },
+        { "text": "もっと安いコースに切り替えたい", "answer": 1 },
+        { "text": "登録しているクレジットカードを別のものに替えたい", "answer": 2 }
+      ]
+    },
+    {
+      "id": "intent-volume", "category": "intent", "style": "ui",
+      "candidates": ["ボタン「音量を上げる」を押す", "ボタン「音量を下げる」を押す"],
+      "queries": [{ "text": "相手の声がよく聞こえない", "answer": 0 }, { "text": "音が大きすぎて耳が痛い", "answer": 1 }]
+    },
+
+    {
+      "id": "ent-univ", "category": "entity", "style": "doc",
+      "candidates": ["東京大学の本郷キャンパスは文京区にある。", "東海大学の湘南キャンパスは平塚市にある。", "東京科学大学は、東京工業大学と東京医科歯科大学が統合してできた。"],
+      "queries": [
+        { "text": "東大のキャンパスはどこ？", "answer": 0 },
+        { "text": "東海大のキャンパスはどこ？", "answer": 1 },
+        { "text": "東工大は何という大学になった？", "answer": 2 }
+      ]
+    },
+    {
+      "id": "ent-pref", "category": "entity", "style": "doc",
+      "candidates": ["大阪府庁は大阪市にある。", "大分県庁は大分市にある。"],
+      "queries": [{ "text": "大阪の府庁所在地", "answer": 0 }, { "text": "大分の県庁所在地", "answer": 1 }]
+    },
+    {
+      "id": "ent-contact", "category": "entity", "style": "ui",
+      "candidates": ["リンク「佐藤 一郎」を開く（連絡先）", "リンク「佐藤 二郎」を開く（連絡先）", "リンク「加藤 一郎」を開く（連絡先）"],
+      "queries": [
+        { "text": "佐藤一郎さんの連絡先を開く", "answer": 0 },
+        { "text": "佐藤二郎さんの連絡先を開く", "answer": 1 },
+        { "text": "加藤一郎さんの連絡先を開く", "answer": 2 }
+      ]
+    },
+    {
+      "id": "ent-city", "category": "entity", "style": "ui",
+      "candidates": ["「行き先」で「京都」を選ぶ", "「行き先」で「東京」を選ぶ", "「行き先」で「京橋」を選ぶ"],
+      "queries": [
+        { "text": "行き先をきょうとにする", "answer": 0 },
+        { "text": "行き先をとうきょうにする", "answer": 1 },
+        { "text": "行き先をきょうばしにする", "answer": 2 }
+      ]
+    },
+    {
+      "id": "ent-abbr", "category": "entity", "style": "doc",
+      "candidates": ["日本放送協会は日本の公共放送である。", "日本航空は日本の航空会社である。", "日本銀行は日本の中央銀行である。"],
+      "queries": [{ "text": "NHKとは", "answer": 0 }, { "text": "JALとは", "answer": 1 }, { "text": "日銀とは", "answer": 2 }]
+    },
+    {
+      "id": "ent-iphone", "category": "entity", "style": "ui",
+      "candidates": ["リンク「iPhone 15 Pro」を開く", "リンク「iPhone 15」を開く", "リンク「iPhone 16 Pro」を開く"],
+      "queries": [
+        { "text": "iPhone 15 Proの商品ページを開く", "answer": 0 },
+        { "text": "iPhone 15（無印）の商品ページを開く", "answer": 1 },
+        { "text": "iPhone 16 Proの商品ページを開く", "answer": 2 }
+      ]
+    },
+
+    {
+      "id": "icon-buttons", "category": "icon", "style": "ui",
+      "candidates": ["ボタン「×」を押す", "ボタン「⚙」を押す", "ボタン「🔍」を押す", "ボタン「♡」を押す", "ボタン「🗑」を押す", "ボタン「✎」を押す", "ボタン「↻」を押す", "ボタン「＋」を押す"],
+      "queries": [
+        { "text": "ダイアログを閉じる", "answer": 0 },
+        { "text": "設定を開く", "answer": 1 },
+        { "text": "検索する", "answer": 2 },
+        { "text": "お気に入りに登録する", "answer": 3 },
+        { "text": "このメモを削除する", "answer": 4 },
+        { "text": "このメモを編集する", "answer": 5 },
+        { "text": "ページを再読み込みする", "answer": 6 },
+        { "text": "新しいメモを追加する", "answer": 7 }
+      ]
+    },
+
+    {
+      "id": "xl-buttons", "category": "cross-lingual", "style": "ui",
+      "candidates": ["ボタン「Save changes」を押す", "ボタン「Discard」を押す", "ボタン「Delete account」を押す", "リンク「Sign out」を開く", "リンク「Privacy settings」を開く"],
+      "queries": [
+        { "text": "変更を保存する", "answer": 0 },
+        { "text": "変更を破棄する", "answer": 1 },
+        { "text": "アカウントを消す", "answer": 2 },
+        { "text": "ログアウトする", "answer": 3 },
+        { "text": "プライバシーの設定を開く", "answer": 4 }
+      ]
+    },
+    {
+      "id": "xl-faq", "category": "cross-lingual", "style": "doc",
+      "candidates": ["Returns are accepted within 30 days of delivery.", "Shipping is free on orders over $50.", "You can change your password on the account page."],
+      "queries": [
+        { "text": "返品はいつまでできる？", "answer": 0 },
+        { "text": "送料が無料になる条件", "answer": 1 },
+        { "text": "パスワードの変え方", "answer": 2 }
+      ]
+    },
+
+    {
+      "id": "syn-links", "category": "synonym", "style": "ui",
+      "candidates": ["リンク「ログイン」を開く", "リンク「新規会員登録」を開く", "リンク「お問い合わせ」を開く", "リンク「よくある質問」を開く"],
+      "queries": [
+        { "text": "サインインする", "answer": 0 },
+        { "text": "アカウントを作る", "answer": 1 },
+        { "text": "サポートに連絡する", "answer": 2 },
+        { "text": "FAQを見る", "answer": 3 }
+      ]
+    },
+    {
+      "id": "syn-category", "category": "synonym", "style": "ui",
+      "candidates": ["ボタン「スマートフォン」を押す（カテゴリ）", "ボタン「パソコン」を押す（カテゴリ）", "ボタン「テレビ」を押す（カテゴリ）"],
+      "queries": [{ "text": "スマホを探す", "answer": 0 }, { "text": "PCを探す", "answer": 1 }, { "text": "TVを探す", "answer": 2 }]
+    },
+    {
+      "id": "syn-leave", "category": "synonym", "style": "ui",
+      "candidates": ["ボタン「退会する」を押す", "ボタン「ログアウト」を押す"],
+      "queries": [{ "text": "アカウントを削除する", "answer": 0 }, { "text": "サインアウトする", "answer": 1 }]
+    },
+
+    {
+      "id": "typo-menu", "category": "typo", "style": "ui",
+      "candidates": ["リンク「ログイン」を開く", "リンク「ログアウト」を開く", "ボタン「パスワードを変更」を押す", "リンク「プロフィール」を開く"],
+      "queries": [
+        { "text": "ﾛｸﾞｲﾝする", "answer": 0 },
+        { "text": "ろぐあうとする", "answer": 1 },
+        { "text": "ログアウ卜する", "answer": 1 },
+        { "text": "パスワ一ドを変える", "answer": 2 },
+        { "text": "プロフイールを開く", "answer": 3 }
+      ]
+    }
+  ],
+  "unanswerable": [
+    { "set": "neg-save-close", "text": "文字を太字にする" },
+    { "set": "ant-volume", "text": "画面を明るくする" },
+    { "set": "ant-cart", "text": "クーポンコードを入力する" },
+    { "set": "num-adults", "text": "子どもの人数を2名にする" },
+    { "set": "num-floor", "text": "5階に行く" },
+    { "set": "conv-tour-en", "text": "定員6名のツアー" },
+    { "set": "role-fields", "text": "乗り換えの駅を指定する" },
+    { "set": "date-delivery", "text": "今日は木曜日。再来週の金曜日に届けてもらう" },
+    { "set": "sup-rating", "text": "大阪の宿を開く" },
+    { "set": "sup-plan", "text": "通話がかけ放題のプラン" },
+    { "set": "multi-receipt", "text": "7月に買ったイヤホンの領収書を出す" },
+    { "set": "trap-boot", "text": "プリンターで印刷できない" },
+    { "set": "intent-aircon", "text": "テレビをつける" },
+    { "set": "ent-contact", "text": "鈴木花子さんの連絡先を開く" },
+    { "set": "icon-buttons", "text": "このページを印刷する" },
+    { "set": "xl-buttons", "text": "通知の設定を開く" },
+    { "set": "syn-links", "text": "カートの中身を見る" },
+    { "set": "neg-spicy", "text": "甘いデザートが食べたい" }
+  ],
+  "fillers": {
+    "ui": [
+      "リンク「会社概要」を開く", "リンク「採用情報」を開く", "リンク「沿革」を開く", "リンク「社長メッセージ」を開く",
+      "リンク「サイトマップ」を開く", "リンク「特定商取引法に基づく表記」を開く", "リンク「ニュースリリース」を開く", "リンク「IR情報」を開く",
+      "リンク「店舗一覧」を開く", "リンク「ブログ」を開く", "リンク「キャンペーン一覧」を開く", "リンク「新着情報」を開く",
+      "リンク「サステナビリティ」を開く", "リンク「ギフトカード」を開く", "リンク「ポイントについて」を開く", "リンク「アプリのダウンロード」を開く",
+      "リンク「法人のお客様」を開く", "リンク「グループ会社」を開く", "リンク「トップページ」を開く", "リンク「レシピ」を開く",
+      "リンク「読みもの」を開く", "リンク「工場見学」を開く", "リンク「駐車場のご案内」を開く", "リンク「施設案内」を開く",
+      "リンク「イベント情報」を開く", "リンク「求人情報」を開く", "リンク「地域貢献活動」を開く", "リンク「株主優待」を開く",
+      "ボタン「シェア」を押す", "ボタン「レビューを書く」を押す", "ボタン「在庫を確認する」を押す", "ボタン「店舗で受け取る」を押す",
+      "ボタン「ポイントを使う」を押す", "ボタン「アンケートに答える」を押す", "ボタン「資料を請求する」を押す", "ボタン「見積もりを依頼する」を押す",
+      "ボタン「来店予約をする」を押す", "ボタン「試着を予約する」を押す", "ボタン「保証内容を確認する」を押す", "ボタン「よくある組み合わせ」を押す",
+      "ボタン「ロゴの使用について」を押す", "ボタン「似ている商品を見る」を押す", "チェックボックス「在庫ありのみ表示」を切り替える（いまはオフ）",
+      "チェックボックス「国産品のみ」を切り替える（いまはオフ）", "入力欄「郵便番号」に入力する", "入力欄「電話番号」に入力する",
+      "入力欄「メールアドレス」に入力する", "入力欄「お名前」に入力する", "入力欄「会社名」に入力する",
+      "プルダウン「都道府県」で選ぶ（北海道／青森県／岩手県／宮城県／秋田県／山形県／福島県／茨城県）", "プルダウン「表示件数」で選ぶ（20件／50件／100件）"
+    ],
+    "doc": [
+      "ペンギンは南半球に多く生息する鳥である。", "コーヒー豆は焙煎の度合いによって味が変わる。", "日本の国会は衆議院と参議院からなる。",
+      "将棋は先手と後手が交互に駒を動かす。", "バッハはバロック時代の作曲家である。", "サンゴ礁は海の生き物のすみかになっている。",
+      "俳句は五・七・五の十七音からなる短い詩である。", "トマトは南米が原産の野菜である。", "ピラミッドは古代エジプトの王の墓とされる。",
+      "オーロラは極地の夜空に現れる光の現象である。", "漢字は中国から日本に伝わった文字である。", "ミツバチは花の蜜を集めて巣に運ぶ。",
+      "囲碁は白と黒の石を交互に置いて陣地を争う。", "火山の噴火によって新しい島ができることがある。", "茶道では客をもてなす作法が大切にされる。",
+      "クジラは海にすむほ乳類である。", "シェイクスピアはイギリスの劇作家である。", "砂漠にはサボテンなど乾燥に強い植物が育つ。",
+      "折り紙は一枚の紙を折って形を作る遊びである。", "月は地球のまわりを回る衛星である。", "パンは小麦粉に酵母を加えて発酵させて焼く。",
+      "ゴッホは「ひまわり」を描いた画家である。", "フラミンゴは片足で立って休むことが多い。", "江戸時代には参勤交代の制度があった。",
+      "雷は雲の中の電気が放電して起こる。", "チーズは牛乳などを発酵させて作る。", "マラソンは長い距離を走る陸上競技である。",
+      "盆栽は小さな鉢で木を育てて楽しむ。", "イルカは超音波を使ってえものの位置を探る。", "藍染めは植物の藍を使って布を青く染める。",
+      "チョウは幼虫からさなぎを経て成虫になる。", "万里の長城は中国北部に築かれた長い城壁である。", "ジャズはアメリカで生まれた音楽である。",
+      "書道では筆と墨を使って文字を書く。", "カエルはおたまじゃくしから育つ。", "ステンドグラスは色ガラスを組み合わせて作る。"
+    ]
+  }
+}

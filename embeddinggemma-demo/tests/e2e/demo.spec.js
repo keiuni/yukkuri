@@ -176,6 +176,21 @@ for (const dtype of DTYPES) {
       await page.screenshot({ path: screenshotPath(dtype, 'search-anime'), fullPage: true });
     });
 
+    test('shows the weak-spot samples with their note', async () => {
+      // Known misses (docs/embeddinggemma-2-failures-*.md): the ranks are recorded, not asserted.
+      record.weakSpots = {};
+      for (const preset of SEARCH_PRESETS.filter((p) => p.alsoV1 !== undefined)) {
+        await page.getByLabel('サンプル').selectOption(preset.id);
+        await runAndWait(page, '検索する', 'search-results');
+        await expect(page.locator('#search-results .hint')).toContainText('苦手な例');
+        const search = await page.evaluate(() => window.__demo.last.search);
+        record.weakSpots[preset.id] = { expectedRank: search.expectedRank, top: search.ranking[0].text, scores: search.ranking.map((row) => row.score) };
+      }
+      await page.getByLabel('サンプル').selectOption('weak-negation');
+      await runAndWait(page, '検索する', 'search-results');
+      await page.screenshot({ path: screenshotPath(dtype, 'search-weak-negation'), fullPage: true });
+    });
+
     test('keeps the right answer on top for every MRL dimension', async () => {
       await page.getByLabel('サンプル').selectOption('faq-ja');
       for (const dims of ['768', '512', '256', '128']) {

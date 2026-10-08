@@ -396,6 +396,13 @@ async function runSearch() {
     const untouched = preset && query === preset.query && docs.join('\n') === preset.docs.join('\n');
     const expectedIndex = untouched ? preset.expectedTop ?? null : null;
     const reference = untouched && dims === 768 && task === preset.task ? preset.referenceScores?.[state.model.model] ?? null : null;
+    // The weak-spot samples say which model is known to miss them (docs/embeddinggemma-2-failures-*.md).
+    const weakNote =
+      untouched && preset.alsoV1 !== undefined
+        ? preset.alsoV1
+          ? '苦手な例: EmbeddingGemma 2 も初代も、想定解より上に別の文書を置いてしまいます。'
+          : '苦手な例: EmbeddingGemma 2 は想定解より上に別の文書を置いてしまいます（初代は正解します）。'
+        : null;
 
     state.last.search = {
       query,
@@ -406,7 +413,7 @@ async function runSearch() {
       expectedRank: expectedIndex === null ? null : order.indexOf(expectedIndex) + 1,
       ranking: order.map((index) => ({ index, text: docs[index], score: scores[index] })),
     };
-    renderSearch({ docs, scores, order, dims, elapsed, queryEmbedding, docEmbedding, reference, expectedIndex });
+    renderSearch({ docs, scores, order, dims, elapsed, queryEmbedding, docEmbedding, reference, expectedIndex, weakNote });
     markRun('search', $('search-results'));
     $('search-note').textContent = '';
   } catch (error) {
@@ -414,7 +421,7 @@ async function runSearch() {
   }
 }
 
-function renderSearch({ docs, scores, order, dims, elapsed, queryEmbedding, docEmbedding, reference, expectedIndex }) {
+function renderSearch({ docs, scores, order, dims, elapsed, queryEmbedding, docEmbedding, reference, expectedIndex, weakNote }) {
   const computed = queryEmbedding.computed + docEmbedding.computed;
   const cached = docs.length + 1 - computed;
   const meta = [
@@ -443,6 +450,7 @@ function renderSearch({ docs, scores, order, dims, elapsed, queryEmbedding, docE
   $('search-results').replaceChildren(
     el('p', { className: 'result-meta', text: meta.join(' · ') }),
     el('ol', { className: `ranking${reference ? ' with-reference' : ''}`, 'aria-label': '検索結果' }, items),
+    weakNote ? el('p', { className: 'hint', text: weakNote }) : null,
   );
 }
 

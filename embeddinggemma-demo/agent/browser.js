@@ -158,6 +158,7 @@ export function installInspector() {
 
         const goal = document.createElement('section');
         goal.append(text('h4', '', '目標'), text('div', 'goal', state.goal));
+        if (state.expect) goal.append(text('div', 'meta', `正しい動き: ${state.expect}`));
         panel.append(goal);
 
         const plan = document.createElement('section');
@@ -188,7 +189,9 @@ export function installInspector() {
             const fill = document.createElement('i');
             fill.style.width = `${Math.round(candidate.p * 100)}%`;
             bar.append(fill);
-            row.append(text('span', 'id', candidate.id ? `[${candidate.id}]` : '—'), text('span', 'label', candidate.label), text('span', 'p', `${(candidate.p * 100).toFixed(0)}%`), bar);
+            // EmbeddingGemma shows its cosine similarity: the probabilities are a softmax of it.
+            const score = candidate.sim === undefined ? `${(candidate.p * 100).toFixed(0)}%` : candidate.sim.toFixed(3);
+            row.append(text('span', 'id', candidate.id ? `[${candidate.id}]` : '—'), text('span', 'label', candidate.label), text('span', 'p', score), bar);
             decision.append(row);
           }
           panel.append(decision);

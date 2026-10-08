@@ -19,6 +19,8 @@
 //   npm run agent -- --planner gemma4           # Gemma 4 E2B also writes the steps
 //   npm run agent -- --planner lfm              # LFM2.5-2.6B writes the steps
 //   npm run agent -- --video                    # record test-output/agent/videos/*.mp4
+//   npm run agent -- --hard --embedding v2      # the hard tasks (negation, superlatives, ...; HARD_TASKS)
+//   npm run agent -- --hard --plain             # the same with the steps written in the page's own words
 //   npm run agent -- --replan                   # ignore cached planner answers
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
@@ -34,7 +36,7 @@ import { DEFAULT_MODEL, MODELS } from '../public/lib/model-config.js';
 import { DONE_PROMPT, EmbeddingGemma, GEMMA4_ID, Gemma4, PLANNER_PROMPT, checkDone, embeddingDecider, llmDecider, planSteps } from './gemma.mjs';
 import { ChatModel, DecisionModel, LIQUID_MODELS, decisionDecider } from './llama.mjs';
 import { TOOL_PROMPT, TOOLS, describeForTools, nextToolCalls, toolAction } from './tools.mjs';
-import { TASKS, TODAY } from './tasks.mjs';
+import { HARD_TASKS, TASKS, TODAY } from './tasks.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'test-output', 'agent');
@@ -65,12 +67,15 @@ if (!MODELS[embeddingModel]) {
   console.error(`Unknown embedding model. Choose from: ${Object.keys(MODELS).join(', ')}`);
   process.exit(1);
 }
-const tasks = wanted.length ? TASKS.filter((task) => wanted.includes(task.id)) : TASKS;
+const hard = flag('hard');
+const plain = flag('plain');
+const pool = hard ? HARD_TASKS : TASKS;
+const tasks = wanted.length ? pool.filter((task) => wanted.includes(task.id)) : pool;
 if (tasks.length === 0) {
-  console.error(`Unknown task. Choose from: ${TASKS.map((task) => task.id).join(', ')}`);
+  console.error(`Unknown task. Choose from: ${pool.map((task) => task.id).join(', ')}`);
   process.exit(1);
 }
-const runName = `${plannerName}${toolAgent ? '' : `-${deciderName}`}${embeddingModel === DEFAULT_MODEL ? '' : `-${embeddingModel}`}${d1Lang === 'ja' ? '' : `-${d1Lang}`}`;
+const runName = `${plannerName}${toolAgent ? '' : `-${deciderName}`}${embeddingModel === DEFAULT_MODEL ? '' : `-${embeddingModel}`}${d1Lang === 'ja' ? '' : `-${d1Lang}`}${hard ? '-hard' : ''}${plain ? '-plain' : ''}`;
 
 await mkdir(OUT, { recursive: true });
 const cacheFile = path.join(OUT, 'gemma4-cache.json');
@@ -143,7 +148,7 @@ async function runTask(browser, task, number) {
   const seconds = () => (Date.now() - started) / 1000;
   const edits = [];
 
-  const state = { goal: task.goal, plannerName: plannerLabel, deciderName: decider.name, steps: [], stepStatus: [], planMs: 0 };
+  const state = { goal: task.goal, expect: task.expect, plannerName: plannerLabel, deciderName: decider.name, steps: [], stepStatus: [], planMs: 0 };
   const render = (extra = {}) => page.evaluate((s) => window.__gj?.render(s), { ...state, ...extra }).catch(() => {});
 
   await page.goto(task.start.startsWith('http') ? task.start : BASE_URL + task.start, { waitUntil: 'load' });
@@ -184,11 +189,19 @@ async function runTask(browser, task, number) {
       .map((p, k) => ({ p, k }))
       .sort((a, b) => b.p - a.p)
       .slice(0, 5)
-      .map(({ p, k }) => ({ id: candidates[k].element?.id ?? null, label: candidates[k].text, p, chosen: k === decision.index }));
+      .map(({ p, k }) => ({ id: candidates[k].element?.id ?? null, label: candidates[k].text, p, sim: decision.sims?.[k], chosen: k === decision.index }));
     const summary = action.op === 'BLOCKED' ? `スキップ: ${action.reason}` : describe(action);
-    await page.evaluate(([ids, chosenId]) => window.__gj?.marks(ids, chosenId), [snap.elements.filter((e) => e.inView).map((e) => e.id), action.element?.id ?? null]).catch(() => {});
+    // In a video, a chosen element below the fold is scrolled into view first so that its outline shows
+    // (the click would scroll to it anyway).
+    let marked = snap.elements.filter((e) => e.inView).map((e) => e.id);
+    if (video && action.element && !action.element.inView) {
+      await page.locator(`[data-gj-id="${action.element.id}"]`).scrollIntoViewIfNeeded({ timeout: 2000 }).catch(() => {});
+      marked = snap.elements.map((e) => e.id);
+    }
+    await page.evaluate(([ids, chosenId]) => window.__gj?.marks(ids, chosenId), [marked, action.element?.id ?? null]).catch(() => {});
     await render({ decision: { op: action.op, summary, top, ms: decision.ms, candidates: candidates.length } });
-    await pause(1800);
+    // The hard tasks are about near ties, so their videos leave more time to read the scores.
+    await pause(hard ? 3200 : 1800);
 
     const executedAt = performance.now();
     let error = null;
@@ -217,7 +230,7 @@ async function runTask(browser, task, number) {
         reason: action.reason,
       },
       similarity,
-      top: top.map(({ id, label, p }) => ({ id, label, p })),
+      top: top.map(({ id, label, p, sim }) => ({ id, label, p, sim })),
       raw: decision.raw,
       error,
     });
@@ -227,11 +240,12 @@ async function runTask(browser, task, number) {
   }
 
   if (plannerName === 'script') {
-    state.steps = task.steps;
-    state.stepStatus = task.steps.map(() => '');
+    const steps = plain && task.plainSteps ? task.plainSteps : task.steps;
+    state.steps = steps;
+    state.stepStatus = steps.map(() => '');
     await render();
     await pause(2200);
-    for (const [index, step] of task.steps.entries()) await performStep(step, index, 0);
+    for (const [index, step] of steps.entries()) await performStep(step, index, 0);
   } else if (toolAgent) {
     // The model calls tools on the numbered elements; each call is executed as it comes, and the page is
     // read again whenever a call leaves it.
@@ -367,7 +381,7 @@ const browser = await chromium.launch();
 const results = [];
 try {
   for (const task of tasks) {
-    const number = String(TASKS.indexOf(task) + 1).padStart(2, '0');
+    const number = `${hard ? 'h' : ''}${String(pool.indexOf(task) + 1).padStart(2, '0')}`;
     process.stdout.write(`${number} ${task.id} … `);
     const result = await runTask(browser, task, number);
     results.push(result);

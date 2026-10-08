@@ -15,6 +15,8 @@ jev-ultrafast の Jev（次の操作を選ぶ判断役）を EmbeddingGemma に�
 （下の「Gemma ブラウザエージェント」）。Liquid AI の判断モデル d1 と LFM2.5-2.6B も同じエージェントで比べました
 （[docs/liquid-ai-2026-10-08.md](docs/liquid-ai-2026-10-08.md)）。スマホのブラウザで Gemma 系のモデルが動くかを調べるページと、
 EmbeddingGemma に 1 文字ずつ文字を選ばせる実験もあります（[docs/phone-and-chargen-2026-10-08.md](docs/phone-and-chargen-2026-10-08.md)）。
+EmbeddingGemma 2 がどんなときに間違えるかは、失敗パターン別の問題集・長い文書・ブラウザエージェントで調べました
+（[docs/embeddinggemma-2-failures-2026-10-08.md](docs/embeddinggemma-2-failures-2026-10-08.md)）。
 
 ![検索タブ](docs/screenshots/search.png)
 
@@ -22,7 +24,7 @@ EmbeddingGemma に 1 文字ずつ文字を選ばせる実験もあります（[d
 
 | タブ | 内容 |
 | --- | --- |
-| 検索 | クエリに近い文書を順位付け。タスク別プロンプト、MRL 次元（768/512/256/128）を切り替え可能。サンプルは想定解に「想定解」バッジが付くので外れがすぐ分かる |
+| 検索 | クエリに近い文書を順位付け。タスク別プロンプト、MRL 次元（768/512/256/128）を切り替え可能。サンプルは想定解に「想定解」バッジが付くので外れがすぐ分かる。EmbeddingGemma 2 が間違える「苦手な例」も 7 つある |
 | 類似度マトリクス | 複数文のコサイン類似度をヒートマップ表示。日英の言い換えがまとまるかを確認 |
 | ミニベンチマーク | 日英の小さな検索データセット（文書63件・クエリ56件、紛らわしい文書入り）で Top-1 / Recall@5 / MRR@10 / nDCG@10 と速度を測定。プロンプト有無 × 次元の比較、言語ペア別、外したクエリの一覧、JSON 保存 |
 | 文字生成 | 文字列に 1 文字ずつ足しては埋め込み、目標（文や質問の埋め込み）にいちばん近づく文字を選び続ける。各ステップの上位候補と類似度を表示 |
@@ -293,6 +295,25 @@ Liquid AI のモデルは llama.cpp（CPU）、EmbeddingGemma と Gemma 4 E2B �
 - 「先月」を正しく月に直せなかったため、プロンプトに今日・今月・先月・来月を明記する
 - 埋め込みを文字数順にまとめて計算する（パディングの無駄が減り、判断が約 5 倍速くなった）
 
+## EmbeddingGemma 2 が失敗するとき
+
+結果は [docs/embeddinggemma-2-failures-2026-10-08.md](docs/embeddinggemma-2-failures-2026-10-08.md) にまとめました。
+主な結果は次のとおりです。
+
+- **失敗パターン別の問題集**（[public/data/failure-probes.json](public/data/failure-probes.json)）
+  - 16 種類・219 問で、2 の正答率は 73%（初代 76%）でした。
+  - 否定・向きや役割・反対の言葉・相対的な日付・最上級・遠回しな言い方で大きく落ちます。
+  - 正解の候補がない問題も、類似度のしきい値では見分けられません。
+- **長い文書**: 答えを含む文書が長く、答えが後ろにあるほど見落とします。
+- **ブラウザエージェント**: 失敗しやすい手順を含む 7 タスクで、2 は 1/7 でした。手順を画面の言葉で書き直すと 7/7 です。
+
+```bash
+npm run failure-probes -- --model v2 --dtype fp32,q8,q4 --prompts all   # 問題集（--decider d1-3b で d1-3B）
+npm run long-text -- --model v2                                         # 長い文書
+node scripts/failure-report.mjs                                         # 比較表（Markdown）
+npm run agent -- --hard --embedding v2                                  # 失敗しやすい 7 タスク（--plain で書き直した手順）
+```
+
 ## 構成
 
 ```
@@ -303,10 +324,15 @@ public/embedder.worker.js   Web Worker 内で Transformers.js を実行
 public/lib/model-config.js  初代と 2 のモデル ID・リビジョン固定・精度、プロンプト、2 をテキストだけで読む設定
 public/lib/metrics.js       MRL 切り詰め、コサイン類似度、Top-1 / MRR / nDCG
 public/data/benchmark.json  ミニベンチマーク用データセット（手作り）
-public/data/presets.js      検索・類似度のサンプル
+public/data/presets.js      検索・類似度のサンプル（「苦手な例」を含む）
+public/data/failure-probes.json  失敗パターン別の問題集（16 種類・219 問、正解のない 18 問、無関係な候補）
+public/lib/probe-metrics.js 問題集の採点（違いを無視した組、AUC、振り分け、文字の重なり）
 scripts/download-model.mjs  モデルのダウンロード
 scripts/make-report.mjs     E2E 結果の集計
 scripts/benchmark.mjs       ミニベンチマークの精度を Node（CPU）で測る
+scripts/failure-probes.mjs  問題集を EmbeddingGemma（プロンプト・次元・候補の数を変えて）や d1-3B で解く
+scripts/failure-report.mjs  問題集と長い文書の結果の比較表
+scripts/long-text.mjs       正解の文書を無関係な文書の中に埋めたときの検索精度
 scripts/record-demo.mjs     字幕つき操作動画の録画
 scripts/lib/video.mjs       録画の後処理（カット・早送り・MP4 変換）とサーバー起動
 agent/run.mjs               Gemma ブラウザエージェント（ループ・インスペクター・録画）
@@ -315,8 +341,8 @@ agent/actions.mjs           候補の作成、値の決め方、Playwright で�
 agent/gemma.mjs             EmbeddingGemma と Gemma 4 E2B（計画・完了判定・比較用の判断役）
 agent/llama.mjs             llama-server で動かす Liquid AI のモデル（d1 の /v1/systemone、LFM2.5 のチャット）
 agent/tools.mjs             道具呼び出しで要素を直接操作するエージェント（LFM2.5-2.6B 用）
-agent/tasks.mjs             6 つのタスクと、それぞれの結果の検証
-public/sites/               エージェントが操作するモックサイト（宿泊予約・通販・アカウント設定）
+agent/tasks.mjs             6 つのタスクと失敗しやすい 7 つのタスク（HARD_TASKS）、それぞれの結果の検証
+public/sites/               エージェントが操作するモックサイト（宿泊予約・通販・アカウント設定・経路検索）
 public/phone.html, phone.js スマホ実行チェック（端末の WebGPU・メモリの確認と、モデルごとの試行）
 public/phone.worker.js      スマホ実行チェックの 1 回の試行（試行ごとに新しいワーカー）
 public/lib/phone-models.js  候補モデルのサイズ・最大の重み・リビジョンと、動くかどうかの判定

@@ -65,6 +65,67 @@ export const SEARCH_PRESETS = [
     ],
     expectedTop: 0,
   },
+  // Weak spots found by the failure probes (scripts/failure-probes.mjs, docs/embeddinggemma-2-failures-*.md).
+  // EmbeddingGemma 2 puts a wrong document first in every one of them, at fp32, q8 and q4. `alsoV1`
+  // tells whether the first model misses it too.
+  ...[
+    {
+      id: 'weak-negation',
+      label: '苦手な例：否定「タバコが吸えない宿」',
+      query: 'タバコが吸えない宿',
+      docs: ['このホテルは全館禁煙で、喫煙所もありません。', 'このホテルには喫煙できる客室があります。', 'このホテルは駅から徒歩3分の場所にあります。', 'このホテルの大浴場は24時間利用できます。'],
+      expectedTop: 0,
+      alsoV1: false,
+    },
+    {
+      id: 'weak-direction',
+      label: '苦手な例：向き「大阪から東京へ」',
+      query: '大阪から東京へ向かう新幹線',
+      docs: ['東京発・新大阪行きの新幹線', '新大阪発・東京行きの新幹線', '東京発・金沢行きの新幹線'],
+      expectedTop: 1,
+      alsoV1: false,
+    },
+    {
+      id: 'weak-role',
+      label: '苦手な例：役割「お金を受け取ったのは誰」',
+      query: '佐藤さんがお金を受け取った取引',
+      docs: ['田中さんが佐藤さんに1万円を送金した。', '佐藤さんが田中さんに1万円を送金した。', '鈴木さんが高橋さんに3千円を送金した。'],
+      expectedTop: 0,
+      alsoV1: true,
+    },
+    {
+      id: 'weak-time',
+      label: '苦手な例：時刻の書き換え「午後3時」',
+      query: '午後3時に始まる会議',
+      docs: ['会議は15時に始まります。', '会議は13時に始まります。', '会議は10時に始まります。'],
+      expectedTop: 0,
+      alsoV1: true,
+    },
+    {
+      id: 'weak-relative',
+      label: '苦手な例：相対的な日付「明日出せるごみ」',
+      query: '今日は水曜日。明日出せるごみは？',
+      docs: ['燃えるごみの収集日は月曜日と木曜日です。', '資源ごみの収集日は水曜日です。', '粗大ごみの収集日は金曜日です。'],
+      expectedTop: 0,
+      alsoV1: true,
+    },
+    {
+      id: 'weak-trap',
+      label: '苦手な例：同じ言葉の罠「パソコンが立ち上がらない」',
+      query: 'パソコンが立ち上がらない',
+      docs: ['電源ボタンを押しても画面が真っ暗なままのときの対処法', 'パソコンの立ち上がりを速くする設定', 'プリンターが印刷できないときの対処法'],
+      expectedTop: 0,
+      alsoV1: true,
+    },
+    {
+      id: 'weak-superlative',
+      label: '苦手な例：比較「いちばん低い山」',
+      query: 'この中でいちばん低い山',
+      docs: ['北岳の標高は3193メートルです。', '富士山の標高は3776メートルです。', '奥穂高岳の標高は3190メートルです。'],
+      expectedTop: 2,
+      alsoV1: true,
+    },
+  ].map((preset) => ({ task: 'search result', ...preset })),
 ];
 
 // Pairs that mean the same thing (across languages) should light up as blocks.

@@ -59,7 +59,8 @@ export class LlamaServer {
       log = (log + chunk).slice(-4000);
     });
     const exited = new Promise((resolve) => self.process.once('exit', resolve));
-    for (let attempt = 0; attempt < 600; attempt++) {
+    // Up to 10 minutes: reading a 3 GB GGUF that is not in the page cache took over 3 minutes on this disk.
+    for (let attempt = 0; attempt < 3000; attempt++) {
       const status = await fetch(`${self.url}/health`).then((response) => response.status, () => 0);
       if (status === 200) return self;
       if (await Promise.race([exited.then(() => true), new Promise((resolve) => setTimeout(() => resolve(false), 200))])) {

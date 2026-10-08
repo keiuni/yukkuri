@@ -19,7 +19,9 @@
     "record": "node scripts/record-demo.mjs",
     "agent": "node agent/run.mjs",
     "phone-check": "node scripts/phone-check.mjs",
-    "char-generate": "node scripts/char-generate.mjs"
+    "char-generate": "node scripts/char-generate.mjs",
+    "failure-probes": "node scripts/failure-probes.mjs",
+    "long-text": "node scripts/long-text.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1"

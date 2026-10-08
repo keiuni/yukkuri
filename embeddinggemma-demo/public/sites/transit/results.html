@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>検索結果｜のりかえナビ</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="../sites.css" />
+    <style>
+      .route { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="logo" href="index.html">のりかえナビ</a>
+      <nav aria-label="サイトメニュー">
+        <a href="#">運行情報</a>
+        <a href="#">時刻表</a>
+        <a href="#">路線図</a>
+        <a href="#">ヘルプ</a>
+      </nav>
+    </header>
+    <main>
+      <h1 id="summary">検索結果</h1>
+      <p class="muted"><a href="index.html">条件を変更する</a></p>
+      <div id="routes"></div>
+    </main>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const from = params.get('from') || '（未入力）';
+      const to = params.get('to') || '（未入力）';
+      const hour = Number(params.get('time') ?? 10);
+      document.getElementById('summary').textContent = `${from} → ${to}（${hour}時台に出発）`;
+      document.getElementById('routes').replaceChildren(
+        ...[0, 1, 2].map((i) => {
+          const card = document.createElement('article');
+          card.className = 'panel route';
+          const minute = String(5 + i * 17).padStart(2, '0');
+          card.append(
+            Object.assign(document.createElement('div'), { textContent: `${hour}:${minute} 発　${from} → ${to}　乗り換え ${i} 回` }),
+            Object.assign(document.createElement('a'), { className: 'button', href: '#', textContent: 'この経路の詳細' }),
+          );
+          return card;
+        }),
+      );
+    </script>
+  </body>
+</html>

@@ -11,6 +11,9 @@
       .search input { flex: 1; }
       .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
       .product .price { font-weight: 800; }
+      .sale-banner { position: relative; background: #fff7ed; border-color: #fdba74; }
+      .sale-banner[hidden] { display: none; }
+      .sale-banner .close { position: absolute; top: 10px; right: 12px; padding: 2px 10px; font-size: 1.1rem; }
     </style>
   </head>
   <body>
@@ -29,6 +32,14 @@
       </nav>
     </header>
     <main>
+      <!-- Shown only with ?banner=1, so the other tasks see the page without it. The close button has no
+           accessible name besides its symbol, as on many real sites. -->
+      <aside class="panel sale-banner" id="sale-banner" hidden>
+        <h2>秋のタイムセール開催中</h2>
+        <p class="muted">人気の家電や日用品が最大50%オフ（10月12日まで）。</p>
+        <a class="button" href="#">セール会場へ</a>
+        <button type="button" class="close" id="close-banner">×</button>
+      </aside>
       <section class="panel">
         <h2>本日のおすすめ</h2>
         <div class="grid">
@@ -43,5 +54,15 @@
         <a href="#">よくある質問</a>　<a href="#">返品・交換について</a>　<a href="#">配送について</a>　<a href="#">お問い合わせ</a>
       </section>
     </main>
+    <script>
+      const banner = document.getElementById('sale-banner');
+      const query = new URLSearchParams(location.search);
+      banner.hidden = query.get('banner') !== '1';
+      document.getElementById('close-banner').addEventListener('click', () => {
+        banner.hidden = true;
+        query.set('banner', 'closed');
+        history.replaceState(null, '', `?${query}`);
+      });
+    </script>
   </body>
 </html>
