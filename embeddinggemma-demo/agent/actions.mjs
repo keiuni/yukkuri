@@ -77,7 +77,7 @@ export const signature = (url, element) => `${new URL(url).pathname}|${element.r
 const normalize = (text) => (text ?? '').normalize('NFKC').replace(/\s+/g, '').toLowerCase();
 const stripParens = (text) => text.replace(/（[^）]*）|\([^)]*\)/g, '');
 
-/** Picks the option named in the step (string match first, EmbeddingGemma similarity as fallback). */
+/** Picks the option named in the step (string match first; then the scores of `embedder`, EmbeddingGemma or a decision model). */
 export async function chooseOption(element, step, embedder) {
   const value = normalize(step.text);
   const haystack = normalize(`${step.step}${step.text}`);
@@ -93,7 +93,7 @@ export async function chooseOption(element, step, embedder) {
     stepQuery(step),
     element.options.map((option) => `「${element.name}」で「${option.text}」を選ぶ`),
   );
-  return { index: sims.indexOf(Math.max(...sims)), how: 'EmbeddingGemma' };
+  return { index: sims.indexOf(Math.max(...sims)), how: embedder.name ?? 'EmbeddingGemma' };
 }
 
 /** Desired switch state from the step wording; toggles when the step does not say. */

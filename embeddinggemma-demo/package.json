@@ -11,6 +11,7 @@
     "start": "node server.mjs",
     "download-model": "node scripts/download-model.mjs",
     "download-phone-models": "node scripts/download-phone-models.mjs",
+    "download-liquid-models": "node scripts/download-liquid-models.mjs",
     "test": "node --test \"tests/unit/**/*.test.js\"",
     "test:e2e": "playwright test",
     "report": "node scripts/make-report.mjs",

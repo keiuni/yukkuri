@@ -12,7 +12,8 @@ Playwright で画面を実際に操作する E2E 検証も同梱しています�
 [docs/embeddinggemma-2-2026-10-08.md](docs/embeddinggemma-2-2026-10-08.md)（2 との比較）にまとめました。
 
 jev-ultrafast の Jev（次の操作を選ぶ判断役）を EmbeddingGemma に置き換えたブラウザエージェントも入っています
-（下の「Gemma ブラウザエージェント」）。スマホのブラウザで Gemma 系のモデルが動くかを調べるページと、
+（下の「Gemma ブラウザエージェント」）。Liquid AI の判断モデル d1 と LFM2.5-2.6B も同じエージェントで比べました
+（[docs/liquid-ai-2026-10-08.md](docs/liquid-ai-2026-10-08.md)）。スマホのブラウザで Gemma 系のモデルが動くかを調べるページと、
 EmbeddingGemma に 1 文字ずつ文字を選ばせる実験もあります（[docs/phone-and-chargen-2026-10-08.md](docs/phone-and-chargen-2026-10-08.md)）。
 
 ![検索タブ](docs/screenshots/search.png)
@@ -146,6 +147,7 @@ Playwright の録画は、画面の描き替えが多い場面（プログレス
 
 - EmbeddingGemma 300M（q4 / q8）
 - EmbeddingGemma 2 のテキストモデル（q4 / q8 は WebGPU、fp32 は WASM）
+- LFM2.5-2.6B（Liquid AI。q4f16 / q4、WebGPU のみ）
 - Gemma 3 270M（q4f16 / q4 / fp32）
 - Gemma 3 1B（q4f16 / q4）
 - Gemma 4 E2B（q4f16 / q4）
@@ -237,6 +239,17 @@ npm run agent -- --decider gemma4  # 判断役を Gemma 4 E2B にして比較（
 npm run agent -- --planner gemma4  # 手順も Gemma 4 E2B が作る（完全ローカル）
 ```
 
+Liquid AI のモデルは llama.cpp の `llama-server` で動かします（`/v1/systemone` のある 2026-10 以降の版。ビルド手順は
+`scripts/download-liquid-models.mjs` の先頭にあります）。
+
+```bash
+export LLAMA_SERVER=/path/to/llama.cpp/build/bin/llama-server
+npm run download-liquid-models                 # d1-3B・d1-omni-600M・LFM2.5-2.6B の GGUF（約 5 GB）
+npm run agent -- --decider d1-3b               # 判断役を d1-3B に（d1-omni、lfm も可。--d1-lang en で指示文を英語に）
+npm run agent -- --planner lfm                 # LFM2.5-2.6B が手順を JSON で書く
+npm run agent -- --planner lfm-tools           # LFM2.5-2.6B が道具呼び出しで要素を直接操作する
+```
+
 タスクは、宿泊予約（検索 → 絞り込み → 並べ替え）、通販（先月の注文の領収書、商品検索 → 並べ替え）、
 アカウント設定（スイッチとプルダウンを変えて保存、「アカウントを削除」ボタンあり）をモックサイト（`public/sites/`）で 5 つ、
 実サイトの日本語版ウィキペディアで 1 つです。手順書はあえて画面のラベルと違う言い方で書いています
@@ -248,8 +261,15 @@ npm run agent -- --planner gemma4  # 手順も Gemma 4 E2B が作る（完全ロ
 | --- | --- | --- | --- | --- |
 | 手順書（Claude が作成） | **EmbeddingGemma 300M** | **6/6** | 0.1 秒 / 3.1 秒 | — |
 | 手順書（Claude が作成） | EmbeddingGemma 2 | 6/6（21 手すべて初代と同じ選択） | 0.13 秒 / 4.6 秒 | — |
+| 手順書（Claude が作成） | d1-3B（Liquid AI の判断モデル） | 5/6 | 12 秒 / 66 秒 | — |
 | 手順書（Claude が作成） | Gemma 4 E2B | 3/6 | 7.4 秒 / 59 秒 | — |
+| 手順書（Claude が作成） | LFM2.5-2.6B | 2/6 | 78 秒 / 229 秒 | — |
+| 手順書（Claude が作成） | d1-omni-600M | 1/6 | 2.7 秒 / 28 秒 | — |
 | Gemma 4 E2B | EmbeddingGemma 300M | 3/6 | 0.15 秒 / 2.9 秒 | 計画 1 回 16〜44 秒（中央値 24 秒）<br>完了判定 1 回 5〜16 秒（中央値 9 秒） |
+| LFM2.5-2.6B（JSON で手順） | EmbeddingGemma 300M | 2/6 | — | 計画 1 回 31〜244 秒 |
+| LFM2.5-2.6B（道具呼び出しで直接操作） | （同じモデル） | 2/6 | — | 1 回 23〜193 秒 |
+
+Liquid AI のモデルは llama.cpp（CPU）、EmbeddingGemma と Gemma 4 E2B は onnxruntime（CPU）で動かしています。
 
 - 判断の最大値は、要素が約 150 個あるウィキペディアのページを初めて見たときです（候補をすべて埋め込むため。同じ文はキャッシュします）。
 - 判断役を Gemma 4 E2B にした行では、EmbeddingGemma と同じ情報（手順と候補の表）だけを渡しています。
@@ -293,6 +313,8 @@ agent/run.mjs               Gemma ブラウザエージェント（ループ・�
 agent/browser.js            ページ内で動く要素表の作成とインスペクター
 agent/actions.mjs           候補の作成、値の決め方、Playwright での実行
 agent/gemma.mjs             EmbeddingGemma と Gemma 4 E2B（計画・完了判定・比較用の判断役）
+agent/llama.mjs             llama-server で動かす Liquid AI のモデル（d1 の /v1/systemone、LFM2.5 のチャット）
+agent/tools.mjs             道具呼び出しで要素を直接操作するエージェント（LFM2.5-2.6B 用）
 agent/tasks.mjs             6 つのタスクと、それぞれの結果の検証
 public/sites/               エージェントが操作するモックサイト（宿泊予約・通販・アカウント設定）
 public/phone.html, phone.js スマホ実行チェック（端末の WebGPU・メモリの確認と、モデルごとの試行）
@@ -304,6 +326,7 @@ public/data/char-vocab.json 文字生成の候補文字（かな・記号と、�
 public/data/char-vectors.json 候補文字 1 文字ずつの埋め込み（int8、漢字の絞り込み用。2 用は char-vectors-v2.json）
 scripts/phone-check.mjs     スマホ相当の条件で phone.html を動かし、結果とメモリを記録
 scripts/download-phone-models.mjs  スマホ実行チェック用のモデルのダウンロード
+scripts/download-liquid-models.mjs  Liquid AI のモデル（GGUF）のダウンロード
 scripts/char-generate.mjs   文字生成の実験
 scripts/build-char-vocab.mjs, export-char-vectors.mjs  候補文字とその埋め込みの作成
 scripts/lib/hub.mjs         Hugging Face Hub からのダウンロード
@@ -314,4 +337,5 @@ tests/unit, tests/e2e       単体テスト、Playwright テスト
 ## ライセンスについて
 
 初代の重みは [Gemma Terms of Use](https://ai.google.dev/gemma/terms)、EmbeddingGemma 2 の重みは Apache 2.0 に従います。
+Liquid AI のモデル（d1、LFM2.5）は LFM Open License v1.0 です（年間売上 1,000 万ドル以上の組織の商用利用は対象外）。
 ミニベンチマークのデータセットはこのデモ用に書いたもので、MTEB / JMTEB の代わりにはなりません。

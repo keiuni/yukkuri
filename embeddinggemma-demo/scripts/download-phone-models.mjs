@@ -4,6 +4,7 @@
 //
 //   npm run download-phone-models                         # the variants the phone check runs by default
 //   npm run download-phone-models -- gemma-3-1b:q4:wasm   # specific variants (model:dtype:device)
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -38,7 +39,17 @@ for (const { model, variant } of wanted) {
   const targetDir = path.join(ROOT, 'models', model.id);
   const graphs = model.sessions.map((session) => `onnx/${variant.fileName ?? session}${SUFFIX[variant.dtype]}.onnx`);
   console.log(`Downloading ${model.id}@${model.revision.slice(0, 7)} [${variant.dtype}] -> ${path.relative(ROOT, targetDir)}`);
-  for (const file of [...BASE_FILES, ...graphs.flatMap((graph) => [graph, `${graph}_data`])]) {
+  for (const file of BASE_FILES) {
+    await downloadFile({ modelId: model.id, revision: model.revision, file, targetDir, force });
+  }
+  // Large weights are split into <graph>_data, <graph>_data_1, ...; config.json says how many there are.
+  const config = JSON.parse(await readFile(path.join(targetDir, 'config.json'), 'utf8'));
+  const format = config['transformers.js_config']?.use_external_data_format;
+  const chunks = (graph) => {
+    const count = format !== null && typeof format === 'object' ? format[path.basename(graph)] : format;
+    return Array.from({ length: typeof count === 'number' ? count : 1 }, (_, i) => `${graph}_data${i === 0 ? '' : `_${i}`}`);
+  };
+  for (const file of graphs.flatMap((graph) => [graph, ...chunks(graph)])) {
     await downloadFile({ modelId: model.id, revision: model.revision, file, targetDir, force });
   }
   for (const file of OPTIONAL_FILES) {

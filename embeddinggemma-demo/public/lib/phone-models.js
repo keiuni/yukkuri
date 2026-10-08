@@ -74,6 +74,20 @@ export const PHONE_MODELS = [
     ],
   },
   {
+    key: 'lfm2.5-2.6b',
+    label: 'LFM2.5-2.6B（Liquid AI）',
+    task: 'text-generation',
+    id: 'LiquidAI/LFM2.5-2.6B-ONNX',
+    revision: '66826372fd4fa166f53be0371c9315745c07cace',
+    sessions: ['model'],
+    // A reasoning model: it always thinks first, so short generations are all thinking. Its 4-bit embedding
+    // table (128000 x 1024 bytes) is the largest weight and fits WebGPU's default 128 MiB limit.
+    variants: [
+      { dtype: 'q4f16', device: 'webgpu', sizeMB: 1534, maxTensorMB: 131, f16: true },
+      { dtype: 'q4', device: 'webgpu', sizeMB: 1855, maxTensorMB: 131 },
+    ],
+  },
+  {
     key: 'gemma-4-e2b',
     label: 'Gemma 4 E2B',
     task: 'text-generation',

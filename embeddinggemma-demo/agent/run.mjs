@@ -7,14 +7,19 @@
 //                               as Claude Code hands them to Jev through jev-mcp
 //   --planner gemma4            everything local: Gemma 4 E2B plans each page and decides
 //                               when the goal is met (Jev's DONE)
+//   --planner lfm               the same with Liquid AI's LFM2.5-2.6B (llama.cpp, see agent/llama.mjs)
+//   --planner lfm-tools         LFM2.5-2.6B as a tool-calling agent that acts on numbered elements itself
+//                               (no separate decider; agent/tools.mjs)
 //
 //   npm run agent                               # every task
 //   npm run agent -- hotel wikipedia            # only these tasks
 //   npm run agent -- --embedding v2             # EmbeddingGemma 2 instead of the first model
 //   npm run agent -- --decider gemma4           # Gemma 4 E2B picks the targets instead (comparison)
+//   npm run agent -- --decider d1-3b            # Liquid AI's decision model d1-3B (also d1-omni, lfm)
 //   npm run agent -- --planner gemma4           # Gemma 4 E2B also writes the steps
+//   npm run agent -- --planner lfm              # LFM2.5-2.6B writes the steps
 //   npm run agent -- --video                    # record test-output/agent/videos/*.mp4
-//   npm run agent -- --replan                   # ignore cached Gemma 4 answers
+//   npm run agent -- --replan                   # ignore cached planner answers
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -26,7 +31,9 @@ import { startServer, toMp4 } from '../scripts/lib/video.mjs';
 import { VALUE_OPS, buildCandidates, chooseOption, describe, describeForPlanner, desiredChecked, execute, signature, textToType } from './actions.mjs';
 import { installInspector, snapshot } from './browser.js';
 import { DEFAULT_MODEL, MODELS } from '../public/lib/model-config.js';
-import { DONE_PROMPT, EmbeddingGemma, GEMMA4_ID, Gemma4, PLANNER_PROMPT, checkDone, embeddingDecider, gemma4Decider, planSteps } from './gemma.mjs';
+import { DONE_PROMPT, EmbeddingGemma, GEMMA4_ID, Gemma4, PLANNER_PROMPT, checkDone, embeddingDecider, llmDecider, planSteps } from './gemma.mjs';
+import { ChatModel, DecisionModel, LIQUID_MODELS, decisionDecider } from './llama.mjs';
+import { TOOL_PROMPT, TOOLS, describeForTools, nextToolCalls, toolAction } from './tools.mjs';
 import { TASKS, TODAY } from './tasks.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -36,7 +43,7 @@ const BASE_URL = `http://127.0.0.1:${PORT}`;
 const VIEWPORT = { width: 1600, height: 900 };
 // Below this cosine similarity the best candidate is not trusted and the step is skipped.
 const MIN_SIMILARITY = 0.3;
-// Safety limits for --planner gemma4: planner calls and executed steps per task.
+// Safety limits when a model plans: planner calls and executed steps per task.
 const MAX_ROUNDS = 6;
 const MAX_STEPS = 16;
 
@@ -48,9 +55,12 @@ const option = (name, fallback) => {
 };
 const deciderName = option('decider', 'embedding');
 const plannerName = option('planner', 'script');
+const toolAgent = plannerName === 'lfm-tools';
 const embeddingModel = option('embedding', DEFAULT_MODEL);
+// Language of the question wording for the d1 deciders (ja / en); the page and the steps stay Japanese.
+const d1Lang = option('d1-lang', 'ja');
 const video = flag('video');
-const wanted = args.filter((arg, i) => !arg.startsWith('--') && !['--decider', '--planner', '--embedding'].includes(args[i - 1]));
+const wanted = args.filter((arg, i) => !arg.startsWith('--') && !['--decider', '--planner', '--embedding', '--d1-lang'].includes(args[i - 1]));
 if (!MODELS[embeddingModel]) {
   console.error(`Unknown embedding model. Choose from: ${Object.keys(MODELS).join(', ')}`);
   process.exit(1);
@@ -60,24 +70,45 @@ if (tasks.length === 0) {
   console.error(`Unknown task. Choose from: ${TASKS.map((task) => task.id).join(', ')}`);
   process.exit(1);
 }
-const runName = `${plannerName}-${deciderName}${embeddingModel === DEFAULT_MODEL ? '' : `-${embeddingModel}`}`;
+const runName = `${plannerName}${toolAgent ? '' : `-${deciderName}`}${embeddingModel === DEFAULT_MODEL ? '' : `-${embeddingModel}`}${d1Lang === 'ja' ? '' : `-${d1Lang}`}`;
 
 await mkdir(OUT, { recursive: true });
 const cacheFile = path.join(OUT, 'gemma4-cache.json');
 const gemma4Cache = JSON.parse(await readFile(cacheFile, 'utf8').catch(() => '{}'));
 
+// llama-server ports for the Liquid AI models (agent/llama.mjs).
+const PORTS = { 'd1-3b': 8091, 'd1-omni': 8092, lfm: 8093 };
+const KNOWN_DECIDERS = ['embedding', 'gemma4', ...Object.keys(LIQUID_MODELS)];
+if (!['script', 'gemma4', 'lfm', 'lfm-tools'].includes(plannerName) || !KNOWN_DECIDERS.includes(deciderName)) {
+  console.error(`Unknown planner or decider. Planners: script, gemma4, lfm, lfm-tools. Deciders: ${KNOWN_DECIDERS.join(', ')}`);
+  process.exit(1);
+}
 const needsGemma4 = plannerName === 'gemma4' || deciderName === 'gemma4';
-console.log(`Loading ${MODELS[embeddingModel].name}${needsGemma4 ? ' and Gemma 4 E2B' : ''}…`);
-const [embedder, gemma4] = await Promise.all([EmbeddingGemma.load(embeddingModel), needsGemma4 ? Gemma4.load() : null]);
-const decider = deciderName === 'gemma4' ? gemma4Decider(gemma4) : embeddingDecider(embedder);
-const plannerLabel = plannerName === 'gemma4' ? gemma4.name : '手順書（Claude が作成）';
+const needsLfm = plannerName.startsWith('lfm') || deciderName === 'lfm';
+const d1Key = LIQUID_MODELS[deciderName]?.kind === 'decision' ? deciderName : null;
+console.log(`Loading ${[MODELS[embeddingModel].name, needsGemma4 && 'Gemma 4 E2B', needsLfm && 'LFM2.5-2.6B', d1Key && LIQUID_MODELS[d1Key].name].filter(Boolean).join(', ')}…`);
+const [embedder, gemma4, lfm, d1] = await Promise.all([
+  EmbeddingGemma.load(embeddingModel),
+  needsGemma4 ? Gemma4.load() : null,
+  needsLfm ? ChatModel.load('lfm', PORTS.lfm) : null,
+  d1Key ? DecisionModel.load(d1Key, PORTS[d1Key]) : null,
+]);
+// llama-server processes end with this script, however it ends.
+process.on('exit', () => [lfm, d1].forEach((model) => model?.stop()));
+const decider = toolAgent
+  ? { name: `${lfm.name}（道具呼び出しで直接操作）` }
+  : { gemma4: () => llmDecider(gemma4), lfm: () => llmDecider(lfm) }[deciderName]?.() ?? (d1 ? decisionDecider(d1, d1Lang) : embeddingDecider(embedder));
+// The model that writes the steps and checks the goal (Jev's DONE), when one does.
+const planner = { gemma4, lfm, 'lfm-tools': lfm }[plannerName] ?? null;
+const plannerLabel = planner ? planner.name : '手順書（Claude が作成）';
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, video ? ms : 0));
 
-/** Gemma 4 output is deterministic (greedy decoding), so the same model, prompts and input reuse the stored answer. */
+/** Planner output is deterministic (greedy decoding or a fixed seed), so the same model, prompts and input reuse the stored answer. */
 async function cachedCall(kind, fn, input) {
-  const key = createHash('sha1').update(JSON.stringify([kind, GEMMA4_ID, PLANNER_PROMPT, DONE_PROMPT, input])).digest('hex');
+  const prompts = kind === 'tools' ? [TOOL_PROMPT, TOOLS] : [PLANNER_PROMPT, DONE_PROMPT];
+  const key = createHash('sha1').update(JSON.stringify([kind, planner.id ?? GEMMA4_ID, ...prompts, input])).digest('hex');
   if (!video && !flag('replan') && gemma4Cache[key]) return { ...gemma4Cache[key], cached: true };
-  const result = await fn(gemma4, input);
+  const result = await fn(planner, input);
   gemma4Cache[key] = result;
   await writeFile(cacheFile, `${JSON.stringify(gemma4Cache, null, 2)}\n`);
   return result;
@@ -92,7 +123,8 @@ async function toAction(chosen, similarity, step) {
       return value ? { op: 'TYPE_TEXT', element: chosen.element, value } : { op: 'BLOCKED', reason: '入力する文字列がない' };
     }
     case 'SELECT': {
-      const picked = await chooseOption(chosen.element, step, embedder);
+      // A decision model also picks the option; the other deciders leave it to EmbeddingGemma.
+      const picked = await chooseOption(chosen.element, step, decider.scorer ?? embedder);
       return { op: 'SELECT', element: chosen.element, optionIndex: picked.index, optionText: chosen.element.options[picked.index].text, optionHow: picked.how };
     }
     case 'CHECK':
@@ -133,11 +165,15 @@ async function runTask(browser, task, number) {
     // Only the explicit `text` counts as a value; 「quoted」 words in a step are often element names.
     const valued = step.text ? all.filter((candidate) => VALUE_OPS.has(candidate.op)) : [];
     let candidates = valued.length ? valued : all;
+    // Deciders that take seconds on a CPU (d1, the generative models) are fast-forwarded in the video.
+    const decideStart = seconds();
+    if (video && deciderName !== 'embedding') await render({ fastForward: `${decider.name} が判断中（候補 ${candidates.length} 個）` });
     let decision = await decider.decide({ goal: task.goal, step, candidates });
     if (valued.length && decision.sims && decision.sims[decision.index] < MIN_SIMILARITY) {
       candidates = all;
       decision = await decider.decide({ goal: task.goal, step, candidates });
     }
+    if (seconds() - decideStart > 2) edits.push({ start: decideStart, end: seconds(), factor: 'fast' });
     const similarity = decision.sims?.[decision.index];
     const chosen = candidates[decision.index];
     // A field an earlier step already set is left alone rather than set twice.
@@ -171,6 +207,7 @@ async function runTask(browser, task, number) {
       elements: snap.elements.length,
       candidates: candidates.length,
       decisionMs: decision.ms,
+      promptTokens: decision.promptTokens,
       executionMs: performance.now() - executedAt,
       action: {
         op: action.op,
@@ -195,37 +232,102 @@ async function runTask(browser, task, number) {
     await render();
     await pause(2200);
     for (const [index, step] of task.steps.entries()) await performStep(step, index, 0);
+  } else if (toolAgent) {
+    // The model calls tools on the numbered elements; each call is executed as it comes, and the page is
+    // read again whenever a call leaves it.
+    for (let round = 0; round < MAX_ROUNDS && log.length < MAX_STEPS; round++) {
+      const snap = await page.evaluate(snapshot);
+      const input = { goal: task.goal, site: task.site, today: TODAY, pageTitle: snap.title, pageElements: describeForTools(snap), history: [...history] };
+      await render({ planning: `${planner.name} が次の操作を考えています（${round + 1}回目）…`, fastForward: `${planner.name} が操作を考え中` });
+      const started = seconds();
+      const reply = await cachedCall('tools', nextToolCalls, input);
+      if (!reply.cached) edits.push({ start: started, end: seconds(), factor: 'fast' });
+      const signature = `${new URL(snap.url).pathname}|${JSON.stringify(reply.calls)}`;
+      const repeated = rounds.some((previous) => previous.signature === signature);
+      rounds.push({ url: snap.url, calls: reply.calls, raw: reply.text, ms: reply.ms, newTokens: reply.newTokens, signature });
+      state.planMs += reply.ms;
+      const actions = reply.calls.map((call) => ({ call, action: toolAction(call, snap) }));
+      if (actions.length === 0 || actions[0].action.op === 'FINISH' || repeated) {
+        const why = actions.length === 0 ? '道具を呼ばずに終えた' : repeated ? '同じ操作の繰り返しになったので終了' : '目標は達成済み（finish）と判断';
+        await render({ note: `${planner.name}: ${why}` });
+        await pause(1500);
+        break;
+      }
+      const offset = state.steps.length;
+      state.steps = [...state.steps, ...actions.map(({ call, action }) => ({ step: action.op === 'BLOCKED' ? `${call.name}（${action.reason}）` : describe(action), text: '' }))];
+      state.stepStatus = [...state.stepStatus, ...actions.map(() => '')];
+      const pathBefore = new URL(page.url()).pathname;
+      for (const [i, { call, action }] of actions.entries()) {
+        if (action.op === 'FINISH') break;
+        state.stepStatus[offset + i] = 'current';
+        const summary = action.op === 'BLOCKED' ? `スキップ: ${action.reason}` : describe(action);
+        await render({ decision: { op: action.op, summary, top: [], ms: i === 0 ? reply.ms : 0, candidates: snap.elements.length } });
+        await pause(1200);
+        const executedAt = performance.now();
+        let error = null;
+        if (action.op !== 'BLOCKED') {
+          try {
+            await execute(page, action);
+          } catch (caught) {
+            error = caught.message.split('\n')[0];
+          }
+        }
+        state.stepStatus[offset + i] = error || action.op === 'BLOCKED' ? 'skipped' : 'done';
+        if (!error && action.op !== 'BLOCKED') history.push(describe(action).replace(/^\[\d+\] /, ''));
+        log.push({
+          round,
+          step: { step: `${call.name}(${JSON.stringify(call.args)})`, text: '' },
+          url: snap.url,
+          elements: snap.elements.length,
+          candidates: snap.elements.length,
+          decisionMs: i === 0 ? reply.ms : 0,
+          promptTokens: i === 0 ? reply.promptTokens : undefined,
+          executionMs: performance.now() - executedAt,
+          action: {
+            op: action.op,
+            target: action.element ? { id: action.element.id, role: action.element.role, name: action.element.name, context: action.element.context } : null,
+            value: action.value ?? action.optionText ?? action.checked,
+            reason: action.reason,
+          },
+          top: [],
+          error,
+        });
+        await render();
+        if (new URL(page.url()).pathname !== pathBefore || log.length >= MAX_STEPS) break; // new page: ask again
+      }
+    }
   } else {
     for (let round = 0; round < MAX_ROUNDS && log.length < MAX_STEPS; round++) {
       const pageSnap = await page.evaluate(snapshot);
       const pageInput = { goal: task.goal, site: task.site, today: TODAY, pageTitle: pageSnap.title, pageElements: describeForPlanner(pageSnap), history: [...history] };
 
-      // Jev's DONE: once something has been done, Gemma 4 E2B checks whether the goal is met.
+      // Jev's DONE: once something has been done, the planner checks whether the goal is met.
       if (round > 0) {
-        await render({ planning: 'Gemma 4 E2B が目標を達成できたか確かめています…', fastForward: 'Gemma 4 E2B が達成を確認中' });
+        await render({ planning: `${planner.name} が目標を達成できたか確かめています…`, fastForward: `${planner.name} が達成を確認中` });
         const checkStart = seconds();
         const verdict = await cachedCall('done', checkDone, { ...pageInput, pageText: pageSnap.text });
         if (!verdict.cached) edits.push({ start: checkStart, end: seconds(), factor: 'fast' });
         rounds.push({ url: pageSnap.url, doneCheck: verdict.raw, ms: verdict.ms });
         state.planMs += verdict.ms;
         if (verdict.done) {
-          await render({ note: 'Gemma 4 E2B: 目標は達成済み（DONE）と判断' });
+          await render({ note: `${planner.name}: 目標は達成済み（DONE）と判断` });
           await pause(1500);
           break;
         }
       }
 
-      // Gemma 4 E2B plans the steps for the current page.
-      await render({ planning: `Gemma 4 E2B がこのページの手順を考えています（${round + 1}回目）…`, fastForward: 'Gemma 4 E2B が手順を作成中' });
+      // The planner writes the steps for the current page.
+      await render({ planning: `${planner.name} がこのページの手順を考えています（${round + 1}回目）…`, fastForward: `${planner.name} が手順を作成中` });
       const planStart = seconds();
       const planned = await cachedCall('plan', planSteps, pageInput);
       if (!planned.cached) edits.push({ start: planStart, end: seconds(), factor: 'fast' });
       const planSignature = `${new URL(pageSnap.url).pathname}|${JSON.stringify(planned.steps)}`;
       const repeated = rounds.some((previous) => previous.signature === planSignature);
-      rounds.push({ url: pageSnap.url, steps: planned.steps, ms: planned.ms, raw: planned.raw, signature: planSignature });
+      rounds.push({ url: pageSnap.url, steps: planned.steps, ms: planned.ms, raw: planned.raw, error: planned.error, newTokens: planned.newTokens, signature: planSignature });
       state.planMs += planned.ms;
       if (planned.steps.length === 0 || repeated) {
-        await render({ note: planned.steps.length === 0 ? 'Gemma 4 E2B: これ以上の手順はないと判断' : '同じ計画の繰り返しになったので終了' });
+        const why = planned.error ? '計画を読み取れなかった（JSON の手順になっていない）' : planned.steps.length === 0 ? 'これ以上の手順はないと判断' : null;
+        await render({ note: why ? `${planner.name}: ${why}` : '同じ計画の繰り返しになったので終了' });
         await pause(1500);
         break;
       }
@@ -273,7 +375,7 @@ try {
     const avg = decisions.reduce((a, b) => a + b, 0) / Math.max(1, decisions.length);
     console.log(
       `${result.ok ? 'OK ' : 'NG '} steps=${result.log.length} ops=${result.log.map((entry) => entry.action.op[0]).join('')} decision avg=${avg.toFixed(0)}ms` +
-        (plannerName === 'gemma4' ? ` plan=${(result.planMs / 1000).toFixed(1)}s` : '') +
+        (planner ? ` plan=${(result.planMs / 1000).toFixed(1)}s` : '') +
         (result.ok ? '' : ` failed: ${result.checks.filter((c) => !c.ok).map((c) => `${c.name}(${c.detail})`).join(', ')}`) +
         (result.videoPath ? ` → ${path.relative(ROOT, result.videoPath)}` : ''),
     );
@@ -281,6 +383,7 @@ try {
 } finally {
   await browser.close();
   server.kill();
+  [lfm, d1].forEach((model) => model?.stop());
   await rm(path.join(OUT, 'videos', 'raw'), { recursive: true, force: true }).catch(() => {});
 }
 

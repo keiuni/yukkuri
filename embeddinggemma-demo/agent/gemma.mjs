@@ -121,7 +121,12 @@ export async function planSteps(gemma4, { goal, site, today, pageTitle, pageElem
       content: `今日: ${describeToday(today)}\nサイト: ${site}\n目標: ${goal}\n\nこれまでの操作:\n${done}\n\nいまのページ「${pageTitle}」の要素:\n${pageElements}`,
     },
   ]);
-  return { steps: parseSteps(text), raw: text, ms, newTokens, promptTokens };
+  // A plan that is not the JSON array asked for counts as no plan: the run records it and moves on.
+  try {
+    return { steps: parseSteps(text), raw: text, ms, newTokens, promptTokens };
+  } catch (error) {
+    return { steps: [], raw: text, ms, newTokens, promptTokens, error: error.message.split('\n')[0].slice(0, 200) };
+  }
 }
 
 export const DONE_PROMPT = `あなたはWebブラウザ操作の結果を確かめる係です。目標・これまでの操作・いまのページを見て、目標がすべて達成されているかを判断してください。
@@ -171,14 +176,15 @@ export function embeddingDecider(embedder) {
 const DECIDER_PROMPT = `あなたはブラウザ操作の判断役です。いまの手順に合う操作を、番号つきの候補から1つだけ選んでください。
 出力は {"id": 番号} というJSONだけにしてください。`;
 
-/** Gemma 4 E2B as the decider: reads the numbered candidate table and answers with one number.
- *  It gets exactly what EmbeddingGemma gets (the step and the candidates), so the two are comparable. */
-export function gemma4Decider(gemma4) {
+/** A generative model (Gemma 4 E2B, LFM2.5-2.6B) as the decider: reads the numbered candidate table and
+ *  answers with one number. It gets exactly what EmbeddingGemma gets (the step and the candidates), so
+ *  they are comparable. */
+export function llmDecider(llm) {
   return {
-    name: gemma4.name,
+    name: llm.name,
     async decide({ step, candidates }) {
       const table = candidates.map((candidate, i) => `${i}: ${candidate.text}`).join('\n');
-      const { text, ms, promptTokens } = await gemma4.chat(
+      const { text, ms, promptTokens } = await llm.chat(
         [
           { role: 'system', content: DECIDER_PROMPT },
           { role: 'user', content: `いまの手順: ${stepQuery(step)}\n候補:\n${table}` },
