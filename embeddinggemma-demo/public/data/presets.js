@@ -14,8 +14,12 @@ export const SEARCH_PRESETS = [
       'Saturn, famous for its rings, is sometimes mistaken for the Red Planet.',
     ],
     expectedTop: 1,
-    // fp32 scores published in the onnx-community model card, for comparison.
-    referenceScores: [0.30109718441963196, 0.6358831524848938, 0.4930494725704193, 0.48887503147125244],
+    // Scores published in the onnx-community model cards, for comparison: fp32 for the first model,
+    // q4 (three decimals) for EmbeddingGemma 2, whose card runs the example with dtype "q4".
+    referenceScores: {
+      v1: { dtype: 'fp32', scores: [0.30109718441963196, 0.6358831524848938, 0.4930494725704193, 0.48887503147125244] },
+      v2: { dtype: 'q4', scores: [0.684, 0.854, 0.752, 0.783] },
+    },
   },
   {
     id: 'faq-ja',

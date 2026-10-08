@@ -1,7 +1,7 @@
 // Runs one test of the phone check page. The page starts a new worker for every test and
 // terminates it afterwards, so the memory a model used is given back before the next one.
 // Protocol: { type: 'run', key, useLocal } -> { type: 'progress', ... }* -> { type: 'done', result } | { type: 'error', message }
-import { DTYPES, TRANSFORMERS_URL, documentPrompt, queryPrompt } from './lib/model-config.js';
+import { TRANSFORMERS_URL, documentPrompt, queryPrompt, textOnlyConfig } from './lib/model-config.js';
 import { GENERATION_MAX_TOKENS, GENERATION_PROMPT, findVariant } from './lib/phone-models.js';
 
 const EMBED_QUERY = '猫に食べさせてはいけないものは？';
@@ -88,15 +88,16 @@ async function runGeneration(lib, model, variant, progress, report, maxTokens) {
 }
 
 async function runEmbedding(lib, model, variant, progress, report) {
-  const { AutoModel, AutoTokenizer } = lib;
+  const { AutoConfig, AutoModel, AutoTokenizer } = lib;
   const options = { revision: model.revision, progress_callback: progress.callback };
   const started = performance.now();
   const tokenizer = await AutoTokenizer.from_pretrained(model.id, options);
   const encoder = await AutoModel.from_pretrained(model.id, {
     ...options,
+    config: await textOnlyConfig(AutoConfig, model.embedding),
     dtype: variant.dtype,
     device: variant.device,
-    model_file_name: variant.fileName ?? DTYPES[variant.dtype].modelFileName,
+    model_file_name: variant.fileName ?? 'model',
   });
   const loadMs = performance.now() - started;
   const downloadMs = progress.downloadMs(started);

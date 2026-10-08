@@ -14,6 +14,7 @@
     "test": "node --test \"tests/unit/**/*.test.js\"",
     "test:e2e": "playwright test",
     "report": "node scripts/make-report.mjs",
+    "benchmark": "node scripts/benchmark.mjs",
     "record": "node scripts/record-demo.mjs",
     "agent": "node agent/run.mjs",
     "phone-check": "node scripts/phone-check.mjs",

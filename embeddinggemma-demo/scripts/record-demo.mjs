@@ -7,6 +7,7 @@
 //   npm run record -- similarity benchmark          # only the named ones
 //   npm run record -- chargen                       # the 文字生成 tab (a few minutes of embedding)
 //   npm run record -- phone-check                   # phone.html on a Pixel 7 screen (needs npm run download-phone-models)
+//   npm run record -- v2-compare                    # the first model vs EmbeddingGemma 2 (needs npm run download-model -- --model v2 fp32)
 //   RECORD_DEBUG=1 npm run record                   # also print how long each cut/fast-forward lasted
 //
 // Output: test-output/videos/<nn>-<scenario>.mp4 (H.264 via ffmpeg; WebM is kept if
@@ -18,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 import { chromium, devices } from '@playwright/test';
 
-import { startServer, toMp4 } from './lib/video.mjs';
+import { MARK_BOX, MARK_COLORS, alignEdits, markTimes, startServer, toMp4 } from './lib/video.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUTPUT_DIR = path.join(ROOT, 'test-output', 'videos');
@@ -29,7 +30,15 @@ const VIEWPORT = { width: 1280, height: 720 };
 
 // ---------------------------------------------------------------- overlay drawn into the page
 
-function installOverlay() {
+function installOverlay(markBox) {
+  // Storage throws on opaque origins such as about:blank.
+  const storage = (access) => {
+    try {
+      return access();
+    } catch {
+      return null;
+    }
+  };
   const install = () => {
     if (document.getElementById('rec-cursor')) return;
     const style = document.createElement('style');
@@ -66,7 +75,21 @@ function installOverlay() {
       '<svg width="24" height="24" viewBox="0 0 24 24"><path d="M3 2l16 9-7 1.6L8.6 20z" fill="#fff" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/></svg>';
     const caption = document.createElement('div');
     caption.id = 'rec-caption';
-    document.body.append(cursor, caption);
+    // Sync marker (scripts/lib/video.mjs): its color changes at every cut or fast-forward boundary. The
+    // color survives navigations so that a reload does not look like a new mark.
+    const marker = document.createElement('div');
+    marker.id = 'rec-marker';
+    Object.assign(marker.style, {
+      position: 'fixed',
+      left: `${markBox.x}px`,
+      top: `${markBox.y}px`,
+      width: `${markBox.size}px`,
+      height: `${markBox.size}px`,
+      zIndex: '2147483647',
+      pointerEvents: 'none',
+      background: storage(() => sessionStorage.getItem('rec-mark')) ?? 'transparent',
+    });
+    document.body.append(cursor, caption, marker);
 
     document.addEventListener(
       'mousemove',
@@ -88,6 +111,10 @@ function installOverlay() {
 
     window.__rec = {
       ripple,
+      mark(color) {
+        marker.style.background = color;
+        storage(() => sessionStorage.setItem('rec-mark', color));
+      },
       caption(text, sub = '', speed = '') {
         caption.replaceChildren();
         if (!text) return;
@@ -135,17 +162,27 @@ class Recording {
   constructor(page) {
     this.page = page;
     this.started = Date.now();
-    this.edits = []; // { start, end, factor } in seconds; factor Infinity removes the span, 'fast' speeds it up
+    this.edits = []; // { start, end, startMark, endMark, factor }; factor Infinity removes the span, 'fast' speeds it up
+    this.marks = []; // wall-clock seconds of every sync mark
   }
 
   seconds() {
     return (Date.now() - this.started) / 1000;
   }
 
+  /** Gives the sync marker its next color; returns the mark's index. */
+  async mark() {
+    const index = this.marks.length;
+    await this.page.evaluate((color) => window.__rec?.mark(color), MARK_COLORS[index % MARK_COLORS.length]).catch(() => {});
+    this.marks.push(this.seconds());
+    return index;
+  }
+
   async span(factor, action) {
-    const start = this.seconds();
+    const startMark = await this.mark();
     const result = await action();
-    this.edits.push({ start, end: this.seconds(), factor });
+    const endMark = await this.mark();
+    this.edits.push({ start: this.marks[startMark], end: this.marks[endMark], startMark, endMark, factor });
     return result;
   }
 
@@ -222,9 +259,9 @@ class Recording {
   }
 
   /** Opens the demo with the given model already loaded; the loading itself is cut from the video. */
-  async openLoaded(dtype = 'q8') {
+  async openLoaded(dtype = 'q8', model = 'v1') {
     await this.cut(async () => {
-      await this.page.goto(`${BASE_URL}/?cache=0&threads=4&dtype=${dtype}&autoload=1`);
+      await this.page.goto(`${BASE_URL}/?cache=0&threads=4&model=${model}&dtype=${dtype}&autoload=1`);
       await this.waitForModel();
       await this.page.mouse.move(640, 420);
     });
@@ -606,6 +643,80 @@ const SCENARIOS = [
       await rec.say('Gemma 3 270M は CPU でも 1 秒に約 10 トークン', '4bit 版は CPU（WASM）では動かないので fp32 を使っている', 5000);
     },
   },
+  {
+    id: 'v2-compare',
+    title: '⑨ 初代と EmbeddingGemma 2 を比べる',
+    subtitle: '同じ検索を初代（q8）と 2（fp32）で実行し、ミニベンチマークも回す',
+    async run(rec, page) {
+      await rec.openLoaded('q8');
+      await rec.title(this.title, this.subtitle);
+
+      const cases = [
+        { preset: 'model-card', label: '惑星（モデルカードの例）' },
+        { preset: 'anime-ja', label: 'アニメ制作の工程' },
+        { preset: 'faq-ja', query: 'カードの有効期限が切れた', expected: 5, label: 'FAQ「カードの有効期限が切れた」' },
+      ];
+      const searchCase = async (item) => {
+        await rec.scrollTo(page.locator('#search-preset'), 200);
+        await rec.caption(`${item.label}で検索`);
+        await rec.select(page.getByLabel('サンプル'), item.preset);
+        if (item.query) await rec.type(page.locator('#search-query'), item.query);
+        await rec.run('検索する', 'search-results');
+        await rec.scrollTo(page.locator('#search-results'));
+        const search = await searchState(page);
+        const expected = item.expected ?? search.expectedIndex;
+        const hit = search.ranking.find((row) => row.index === expected);
+        return { rank: rankOf(search, expected), score: hit.score, top: search.ranking[0], low: search.ranking.at(-1) };
+      };
+
+      const first = [];
+      for (const item of cases) {
+        const result = await searchCase(item);
+        first.push(result);
+        await rec.say(
+          `初代：想定解は${result.rank}位（${score(result.score)}）`,
+          result.rank === 1 ? `最下位の文書は ${score(result.low.score)}` : `1位は「${result.top.text.slice(0, 24)}…」`,
+          3600,
+        );
+      }
+
+      await page.mouse.move(640, 300, { steps: 8 });
+      await rec.scrollTo(page.locator('#model-heading'), 30);
+      await rec.caption('モデルを EmbeddingGemma 2 に切り替える');
+      await rec.select(page.locator('#model'), 'v2');
+      await rec.moveTo(page.locator('#dtype'));
+      await rec.say('2 の q8・q4 は WebGPU 専用。CPU（WASM）では fp32（1.1 GB）だけ', '量子化版が埋め込み表に GatherBlockQuantized を使うため', 4000);
+      await rec.click(page.getByRole('button', { name: '別の設定で読み込み直す' }));
+      await rec.fastForward('EmbeddingGemma 2（fp32）を読み込み中', () => rec.waitForModel());
+      await rec.caption('');
+
+      for (const [i, item] of cases.entries()) {
+        const result = await searchCase(item);
+        const before = first[i];
+        await rec.say(
+          `2：想定解は${result.rank}位（${score(result.score)}）`,
+          `初代は${before.rank}位（${score(before.score)}）・最下位の文書は ${score(result.low.score)}（初代 ${score(before.low.score)}）`,
+          4200,
+        );
+      }
+
+      await rec.click(page.getByRole('tab', { name: 'ミニベンチマーク' }));
+      await rec.scrollTo(page.getByRole('button', { name: 'ベンチマークを実行' }), 260);
+      const previous = Number((await page.locator('#benchmark-results').getAttribute('data-run')) ?? 0);
+      await rec.click(page.getByRole('button', { name: 'ベンチマークを実行' }));
+      await rec.fastForward('2 でミニベンチマークを実行中（約240件）', () =>
+        page.locator(`#benchmark-results[data-run="${previous + 1}"]`).waitFor({ timeout: 10 * 60 * 1000 }),
+      );
+      const result = await page.evaluate(() => window.__demo.last.benchmark);
+      const main = result.evaluations.find((row) => row.mode === 'prompt' && row.dims === 768).overall;
+      await rec.scrollTo(page.locator('#benchmark-results .tiles'), 120);
+      await rec.say(
+        `2：Top-1 ${(main.acc1 * 100).toFixed(1)}%（${Math.round(main.acc1 * main.count)}/${main.count}問）・MRR@10 ${main.mrr10.toFixed(3)}`,
+        `文書 ${Math.round(result.speed.documents.msPerText)} ms/件・検索 ${Math.round(result.speed.queries.p50Ms)} ms（この録画環境での値）`,
+        4600,
+      );
+    },
+  },
 ];
 
 // ---------------------------------------------------------------- main
@@ -626,7 +737,7 @@ try {
     const number = String(SCENARIOS.indexOf(scenario) + 1).padStart(2, '0');
     const device = scenario.device ? devices[scenario.device] : { viewport: VIEWPORT };
     const context = await browser.newContext({ ...device, locale: 'ja-JP', recordVideo: { dir: RAW_DIR, size: device.viewport } });
-    await context.addInitScript(installOverlay);
+    await context.addInitScript(installOverlay, MARK_BOX);
     const page = await context.newPage();
     const rec = new Recording(page);
     process.stdout.write(`${number} ${scenario.id} … `);
@@ -643,7 +754,12 @@ try {
     }
     const webm = path.join(RAW_DIR, `${number}-${scenario.id}.webm`);
     await rename(await page.video().path(), webm);
-    const output = await toMp4(webm, path.join(OUTPUT_DIR, `${number}-${scenario.id}.mp4`), rec.edits);
+    const times = await markTimes(webm, rec.marks.length);
+    const edits = alignEdits(rec.edits, rec.marks, times);
+    if (process.env.RECORD_DEBUG) {
+      process.stdout.write(`[marks ${rec.marks.map((wall, i) => `${wall.toFixed(1)}→${times[i]?.toFixed(1) ?? '?'}`).join(' ')}] `);
+    }
+    const output = await toMp4(webm, path.join(OUTPUT_DIR, `${number}-${scenario.id}.mp4`), edits, { hideMarker: true });
     console.log(path.relative(ROOT, output));
   }
 } finally {

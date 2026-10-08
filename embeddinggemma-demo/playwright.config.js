@@ -17,7 +17,18 @@ export default defineConfig({
     viewport: { width: 1280, height: 900 },
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 900 } } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1280, height: 900 },
+        // DEVICE=webgpu runs need WebGPU, which headless Chromium only offers behind this flag (a software
+        // adapter when there is no GPU, as in CI: fine for checking results, not for timing them).
+        launchOptions: process.env.DEVICE === 'webgpu' ? { args: ['--enable-unsafe-webgpu'] } : {},
+      },
+    },
+  ],
   webServer: {
     command: 'node server.mjs',
     url: `http://127.0.0.1:${PORT}/`,

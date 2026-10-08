@@ -1,17 +1,18 @@
 // Runs EmbeddingGemma inside a module worker so the page stays responsive while
 // onnxruntime-web is busy. Protocol (request -> response, matched by `id`):
-//   { type: 'load', dtype, device, numThreads, useCache, useLocal } -> { type: 'loaded', info }
+//   { type: 'load', model, dtype, device, numThreads, useCache, useLocal } -> { type: 'loaded', info }
 //   { type: 'embed', texts, batchSize }                             -> { type: 'embedded', vectors, dim, tokens, timings }
 // Progress messages ({ type: 'progress', ... }) are sent while a request runs.
-import { DTYPES, MODEL_ID, MODEL_REVISION, TRANSFORMERS_URL } from './lib/model-config.js';
+import { MODELS, TRANSFORMERS_URL, textOnlyConfig } from './lib/model-config.js';
 
 const transformersReady = import(TRANSFORMERS_URL);
 
 let tokenizer = null;
 let model = null;
 
-async function load({ dtype, device, useCache, useLocal, numThreads }, report) {
-  const { AutoModel, AutoTokenizer, env } = await transformersReady;
+async function load({ model: modelKey, dtype, device, useCache, useLocal, numThreads }, report) {
+  const { AutoConfig, AutoModel, AutoTokenizer, env } = await transformersReady;
+  const { id, revision, dtypes } = MODELS[modelKey];
   // onnxruntime-web defaults to min(4, ceil(cores / 2)) threads; it only takes effect before the first session.
   if (numThreads) env.backends.onnx.wasm.numThreads = numThreads;
   env.useBrowserCache = useCache;
@@ -39,20 +40,22 @@ async function load({ dtype, device, useCache, useLocal, numThreads }, report) {
   };
 
   const started = performance.now();
-  tokenizer = await AutoTokenizer.from_pretrained(MODEL_ID, { revision: MODEL_REVISION, progress_callback });
-  model = await AutoModel.from_pretrained(MODEL_ID, {
-    revision: MODEL_REVISION,
+  tokenizer = await AutoTokenizer.from_pretrained(id, { revision, progress_callback });
+  model = await AutoModel.from_pretrained(id, {
+    revision,
+    config: await textOnlyConfig(AutoConfig, modelKey),
     dtype,
     device,
-    model_file_name: DTYPES[dtype].modelFileName,
+    model_file_name: dtypes[dtype].modelFileName,
     progress_callback,
   });
   const loadMs = performance.now() - started;
 
   const wasm = env.backends.onnx?.wasm ?? {};
   return {
-    modelId: MODEL_ID,
-    revision: MODEL_REVISION,
+    model: modelKey,
+    modelId: id,
+    revision,
     dtype,
     device,
     loadMs,

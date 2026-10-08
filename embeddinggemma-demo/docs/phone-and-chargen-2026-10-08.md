@@ -90,7 +90,7 @@ CPU は 4 コアで、GPU はありません。そのため WebGPU の速度は�
 モデルカードの値では、MTEB 多言語は初代とほぼ同じ（61.36 対 61.15）で、コードは大きく向上しています（78.68 対 68.76）。
 [ONNX 版](https://huggingface.co/onnx-community/embeddinggemma-2-ONNX) のテキストモデルは q4f16 で 157 MB と軽いです。
 ただし q8・q4・q4f16 はどれも GatherBlockQuantized を使うので、ブラウザで動かすには WebGPU が必要です（CPU だと fp32 の 1.1 GB）。
-このリポジトリの検証はすべて初代（300M）で行っています。
+この文書の検証は初代（300M）で行いました。同じ検証を 2 でやり直した結果は [embeddinggemma-2-2026-10-08.md](embeddinggemma-2-2026-10-08.md) にあります。
 
 ## 2. EmbeddingGemma で 1 文字ずつ文字を選ぶ
 

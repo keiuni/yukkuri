@@ -5,10 +5,11 @@
 // buffer, so it has to fit in adapter.limits.maxBufferSize and maxStorageBufferBindingSize.
 // Both were read from the ONNX files on the Hub (2026-10-08).
 //
-// The 4-bit and 8-bit Gemma LLM exports keep their embedding table as GatherBlockQuantized, which the
-// WASM (CPU) build of onnxruntime-web does not implement, so they only run on WebGPU. On WASM that
-// leaves fp32 (Gemma 3 1B: 4.1 GB, Gemma 4 E2B: 20.5 GB), which is only practical for the 270M model.
-import { MODEL_ID as EMBEDDING_ID, MODEL_REVISION as EMBEDDING_REVISION } from './model-config.js';
+// The 4-bit and 8-bit Gemma LLM exports (and EmbeddingGemma 2's) keep their embedding table as
+// GatherBlockQuantized, which the WASM (CPU) build of onnxruntime-web does not implement, so they only
+// run on WebGPU. On WASM that leaves fp32 (Gemma 3 1B: 4.1 GB, Gemma 4 E2B: 20.5 GB), which is only
+// practical for the small models.
+import { MODELS } from './model-config.js';
 
 // Every text-generation test answers this, greedily, with at most GENERATION_MAX_TOKENS tokens.
 export const GENERATION_PROMPT = 'スマートフォンの中でAIを動かす利点を、短く3つ挙げてください。';
@@ -19,13 +20,31 @@ export const PHONE_MODELS = [
     key: 'embeddinggemma',
     label: 'EmbeddingGemma 300M',
     task: 'embedding',
-    id: EMBEDDING_ID,
-    revision: EMBEDDING_REVISION,
+    // `embedding` is the key in model-config.js MODELS.
+    embedding: 'v1',
+    id: MODELS.v1.id,
+    revision: MODELS.v1.revision,
     sessions: ['model'],
     variants: [
       // q4 uses the "no_gather" export because WASM cannot run GatherBlockQuantized.
       { dtype: 'q4', device: 'wasm', sizeMB: 195, maxTensorMB: 101, fileName: 'model_no_gather' },
       { dtype: 'q8', device: 'wasm', sizeMB: 309, maxTensorMB: 201 },
+    ],
+  },
+  {
+    key: 'embeddinggemma-2',
+    label: 'EmbeddingGemma 2（テキスト）',
+    task: 'embedding',
+    embedding: 'v2',
+    id: MODELS.v2.id,
+    revision: MODELS.v2.revision,
+    // Only the text model is loaded, not the image and audio encoders.
+    sessions: ['model'],
+    // The largest weight is the embedding table (262144 x 512): 4-bit 67 MB, 8-bit exactly 128 MiB.
+    variants: [
+      { dtype: 'q4', device: 'webgpu', sizeMB: 175, maxTensorMB: 67 },
+      { dtype: 'q8', device: 'webgpu', sizeMB: 314, maxTensorMB: 134 },
+      { dtype: 'fp32', device: 'wasm', sizeMB: 1085, maxTensorMB: 537 },
     ],
   },
   {

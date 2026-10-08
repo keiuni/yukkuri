@@ -14,7 +14,8 @@
       <div class="wrap">
         <h1>EmbeddingGemma Playground</h1>
         <p class="lede">
-          <a href="https://huggingface.co/google/embeddinggemma-300m" target="_blank" rel="noopener">google/embeddinggemma-300m</a>
+          <a href="https://huggingface.co/google/embeddinggemma-300m" target="_blank" rel="noopener">EmbeddingGemma（初代・300M）</a>と
+          <a href="https://huggingface.co/google/embeddinggemma-2" target="_blank" rel="noopener">EmbeddingGemma 2</a>
           の ONNX 版をブラウザ内で実行します。入力したテキストは外部に送信されません。
         </p>
         <p class="lede"><a href="phone.html">スマホ実行チェック</a>: この端末で Gemma 系のモデルが動くかを調べるページです。</p>
@@ -28,6 +29,10 @@
           <p id="model-status" class="status" data-state="idle" role="status">未読み込み</p>
         </div>
         <div class="controls">
+          <label class="field">
+            <span>モデル</span>
+            <select id="model"></select>
+          </label>
           <label class="field">
             <span>精度</span>
             <select id="dtype"></select>
@@ -205,6 +210,8 @@
       <p>
         モデル: <a href="https://huggingface.co/onnx-community/embeddinggemma-300m-ONNX" target="_blank" rel="noopener">onnx-community/embeddinggemma-300m-ONNX</a>
         （<a href="https://ai.google.dev/gemma/terms" target="_blank" rel="noopener">Gemma Terms of Use</a>）・
+        <a href="https://huggingface.co/onnx-community/embeddinggemma-2-ONNX" target="_blank" rel="noopener">onnx-community/embeddinggemma-2-ONNX</a>
+        （Apache 2.0）・
         推論: <a href="https://huggingface.co/docs/transformers.js" target="_blank" rel="noopener">Transformers.js</a>
       </p>
     </footer>

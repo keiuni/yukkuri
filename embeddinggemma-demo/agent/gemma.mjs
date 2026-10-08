@@ -1,10 +1,10 @@
 // The two Gemma models used by the agent, running in Node with onnxruntime (CPU).
-//   - EmbeddingGemma 300M: the fast "System One" decider that plays Jev's role.
+//   - EmbeddingGemma (300M, or EmbeddingGemma 2): the fast "System One" decider that plays Jev's role.
 //   - Gemma 4 E2B (instruction tuned): writes the step plan, like the LLM in jev-ultrafast,
 //     and can optionally act as the decider for comparison.
-import { AutoModel, AutoModelForCausalLM, AutoTokenizer, env } from '@huggingface/transformers';
+import { AutoConfig, AutoModel, AutoModelForCausalLM, AutoTokenizer, env } from '@huggingface/transformers';
 
-import { MODEL_ID as EMBEDDING_ID, MODEL_REVISION as EMBEDDING_REVISION, documentPrompt, queryPrompt } from '../public/lib/model-config.js';
+import { DEFAULT_MODEL, MODELS, documentPrompt, queryPrompt, textOnlyConfig } from '../public/lib/model-config.js';
 import { stepQuery } from './actions.mjs';
 
 const MODELS_DIR = new URL('../models/', import.meta.url).pathname;
@@ -15,14 +15,22 @@ env.cacheDir = MODELS_DIR;
 export const GEMMA4_ID = 'onnx-community/gemma-4-E2B-it-ONNX';
 
 export class EmbeddingGemma {
-  name = 'EmbeddingGemma 300M';
   batchSize = 16;
   #cache = new Map();
 
-  static async load() {
+  /** `model` is a key of MODELS ('v1' or 'v2'). */
+  static async load(model = DEFAULT_MODEL, dtype = 'fp32') {
     const self = new EmbeddingGemma();
-    self.tokenizer = await AutoTokenizer.from_pretrained(EMBEDDING_ID, { revision: EMBEDDING_REVISION });
-    self.model = await AutoModel.from_pretrained(EMBEDDING_ID, { revision: EMBEDDING_REVISION, dtype: 'fp32', device: 'cpu' });
+    const { id, revision, name, dtypes } = MODELS[model];
+    Object.assign(self, { key: model, name: dtype === 'fp32' ? name : `${name} ${dtype}`, revision, dtype });
+    self.tokenizer = await AutoTokenizer.from_pretrained(id, { revision });
+    self.model = await AutoModel.from_pretrained(id, {
+      revision,
+      config: await textOnlyConfig(AutoConfig, model),
+      dtype,
+      device: 'cpu',
+      model_file_name: dtypes[dtype].modelFileName,
+    });
     return self;
   }
 

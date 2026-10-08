@@ -10,6 +10,7 @@
 //
 //   npm run agent                               # every task
 //   npm run agent -- hotel wikipedia            # only these tasks
+//   npm run agent -- --embedding v2             # EmbeddingGemma 2 instead of the first model
 //   npm run agent -- --decider gemma4           # Gemma 4 E2B picks the targets instead (comparison)
 //   npm run agent -- --planner gemma4           # Gemma 4 E2B also writes the steps
 //   npm run agent -- --video                    # record test-output/agent/videos/*.mp4
@@ -24,6 +25,7 @@ import { chromium } from '@playwright/test';
 import { startServer, toMp4 } from '../scripts/lib/video.mjs';
 import { VALUE_OPS, buildCandidates, chooseOption, describe, describeForPlanner, desiredChecked, execute, signature, textToType } from './actions.mjs';
 import { installInspector, snapshot } from './browser.js';
+import { DEFAULT_MODEL, MODELS } from '../public/lib/model-config.js';
 import { DONE_PROMPT, EmbeddingGemma, GEMMA4_ID, Gemma4, PLANNER_PROMPT, checkDone, embeddingDecider, gemma4Decider, planSteps } from './gemma.mjs';
 import { TASKS, TODAY } from './tasks.mjs';
 
@@ -46,22 +48,27 @@ const option = (name, fallback) => {
 };
 const deciderName = option('decider', 'embedding');
 const plannerName = option('planner', 'script');
+const embeddingModel = option('embedding', DEFAULT_MODEL);
 const video = flag('video');
-const wanted = args.filter((arg, i) => !arg.startsWith('--') && !['--decider', '--planner'].includes(args[i - 1]));
+const wanted = args.filter((arg, i) => !arg.startsWith('--') && !['--decider', '--planner', '--embedding'].includes(args[i - 1]));
+if (!MODELS[embeddingModel]) {
+  console.error(`Unknown embedding model. Choose from: ${Object.keys(MODELS).join(', ')}`);
+  process.exit(1);
+}
 const tasks = wanted.length ? TASKS.filter((task) => wanted.includes(task.id)) : TASKS;
 if (tasks.length === 0) {
   console.error(`Unknown task. Choose from: ${TASKS.map((task) => task.id).join(', ')}`);
   process.exit(1);
 }
-const runName = `${plannerName}-${deciderName}`;
+const runName = `${plannerName}-${deciderName}${embeddingModel === DEFAULT_MODEL ? '' : `-${embeddingModel}`}`;
 
 await mkdir(OUT, { recursive: true });
 const cacheFile = path.join(OUT, 'gemma4-cache.json');
 const gemma4Cache = JSON.parse(await readFile(cacheFile, 'utf8').catch(() => '{}'));
 
 const needsGemma4 = plannerName === 'gemma4' || deciderName === 'gemma4';
-console.log(`Loading EmbeddingGemma${needsGemma4 ? ' and Gemma 4 E2B' : ''}…`);
-const [embedder, gemma4] = await Promise.all([EmbeddingGemma.load(), needsGemma4 ? Gemma4.load() : null]);
+console.log(`Loading ${MODELS[embeddingModel].name}${needsGemma4 ? ' and Gemma 4 E2B' : ''}…`);
+const [embedder, gemma4] = await Promise.all([EmbeddingGemma.load(embeddingModel), needsGemma4 ? Gemma4.load() : null]);
 const decider = deciderName === 'gemma4' ? gemma4Decider(gemma4) : embeddingDecider(embedder);
 const plannerLabel = plannerName === 'gemma4' ? gemma4.name : '手順書（Claude が作成）';
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, video ? ms : 0));

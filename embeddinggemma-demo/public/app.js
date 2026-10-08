@@ -1,9 +1,9 @@
 import { initCharGen } from './chargen-tab.js';
 import { SEARCH_PRESETS, SIMILARITY_SENTENCES } from './data/presets.js';
 import { evaluateRetrieval, mean, percentile, rankIndices, similarityMatrix, truncateAndNormalize } from './lib/metrics.js';
-import { DTYPES, MODEL_ID, MRL_DIMS, NO_PROMPT, QUERY_TASKS, documentPrompt, queryPrompt } from './lib/model-config.js';
+import { DEFAULT_MODEL, MODELS, MRL_DIMS, NO_PROMPT, QUERY_TASKS, documentPrompt, queryPrompt } from './lib/model-config.js';
 
-// URL options (handy for automation): ?dtype=q4&device=wasm&threads=4&autoload=1&cache=0&local=0
+// URL options (handy for automation): ?model=v2&dtype=q4&device=wasm&threads=4&autoload=1&cache=0&local=0
 const params = new URL(location.href).searchParams;
 const $ = (id) => document.getElementById(id);
 
@@ -167,14 +167,27 @@ function fillSelect(select, options, selected) {
   );
 }
 
+const dtypeLabel = (info) => MODELS[info.model].dtypes[info.dtype].label;
+const modelLabel = (info) => `${MODELS[info.model].name} ${dtypeLabel(info)}`;
+
+/** Precision choices for the selected model; exports that need WebGPU are disabled on WASM. */
+function fillDtypes(selected) {
+  const { dtypes } = MODELS[$('model').value];
+  const wasm = $('device').value === 'wasm';
+  const options = Object.entries(dtypes).map(([value, { label, sizeMB, webgpuOnly }]) => ({
+    value,
+    label: `${label} · ${sizeMB >= 1000 ? `${(sizeMB / 1000).toFixed(1)} GB` : `${sizeMB} MB`}${webgpuOnly && wasm ? '（WebGPU のみ）' : ''}`,
+    disabled: webgpuOnly && wasm,
+  }));
+  const usable = options.filter((option) => !option.disabled).map((option) => option.value);
+  fillSelect($('dtype'), options, usable.includes(selected) ? selected : usable.includes('q8') ? 'q8' : usable[0]);
+}
+
 async function initModelPanel() {
   fillSelect(
-    $('dtype'),
-    Object.entries(DTYPES).map(([value, { label, sizeMB }]) => ({
-      value,
-      label: `${label} · ${sizeMB >= 1000 ? `${(sizeMB / 1000).toFixed(1)} GB` : `${sizeMB} MB`}`,
-    })),
-    DTYPES[params.get('dtype')] ? params.get('dtype') : 'q8',
+    $('model'),
+    Object.entries(MODELS).map(([value, { label }]) => ({ value, label })),
+    MODELS[params.get('model')] ? params.get('model') : DEFAULT_MODEL,
   );
 
   const cores = navigator.hardwareConcurrency || 1;
@@ -200,16 +213,20 @@ async function initModelPanel() {
   }
   const requestedDevice = params.get('device');
   $('device').value = requestedDevice === 'webgpu' && adapter ? 'webgpu' : 'wasm';
+  fillDtypes(params.get('dtype') ?? 'q8');
   hints.push(`CPU論理コア: ${cores}`);
   $('env-hint').textContent = hints.join(' ');
 
+  $('model').addEventListener('change', () => fillDtypes($('dtype').value));
   $('device').addEventListener('change', () => {
     $('threads').disabled = $('device').value !== 'wasm' || !self.crossOriginIsolated;
+    fillDtypes($('dtype').value);
   });
   $('load-button').addEventListener('click', () => runExclusive(loadModel));
 }
 
 async function loadModel() {
+  const model = $('model').value;
   const dtype = $('dtype').value;
   const device = $('device').value;
   const threads = $('threads').value;
@@ -219,7 +236,7 @@ async function loadModel() {
   state.cache.clear();
   $('model-facts').replaceChildren();
   updateButtons();
-  setStatus('loading', `${DTYPES[dtype].label} を読み込み中…`);
+  setStatus('loading', `${modelLabel({ model, dtype })} を読み込み中…`);
   setProgress(progress, 0, '準備中…');
 
   client.start();
@@ -227,6 +244,7 @@ async function loadModel() {
     const { info } = await client.request(
       {
         type: 'load',
+        model,
         dtype,
         device,
         numThreads: device === 'wasm' && threads !== 'auto' ? Number(threads) : undefined,
@@ -248,7 +266,7 @@ async function loadModel() {
 
     state.model = info;
     progress.hidden = true;
-    setStatus('ready', `準備完了 — ${DTYPES[dtype].label} · ${DEVICE_LABELS[device]}`);
+    setStatus('ready', `準備完了 — ${modelLabel(info)} · ${DEVICE_LABELS[device]}`);
     renderFacts(info);
     $('load-button').textContent = '別の設定で読み込み直す';
   } catch (error) {
@@ -262,7 +280,8 @@ function renderFacts(info) {
   const facts = [
     ['読み込み時間', fmtMs(info.loadMs)],
     ['初回推論（ウォームアップ）', fmtMs(info.warmupMs)],
-    ['精度', DTYPES[info.dtype].label],
+    ['モデル', MODELS[info.model].name],
+    ['精度', dtypeLabel(info)],
     ['実行環境', DEVICE_LABELS[info.device]],
     ['WASMスレッド', info.numThreads ?? '–'],
     ['クロスオリジン分離', info.crossOriginIsolated ? '有効' : '無効'],
@@ -376,7 +395,7 @@ async function runSearch() {
     const preset = currentPreset();
     const untouched = preset && query === preset.query && docs.join('\n') === preset.docs.join('\n');
     const expectedIndex = untouched ? preset.expectedTop ?? null : null;
-    const reference = untouched && preset.referenceScores && dims === 768 && task === preset.task ? preset.referenceScores : null;
+    const reference = untouched && dims === 768 && task === preset.task ? preset.referenceScores?.[state.model.model] ?? null : null;
 
     state.last.search = {
       query,
@@ -417,7 +436,7 @@ function renderSearch({ docs, scores, order, dims, elapsed, queryEmbedding, docE
         docs[index],
         index === expectedIndex ? el('span', { className: 'badge', text: '想定解' }) : null,
       ),
-      scoreBar(scores[index], reference ? `（モデルカード ${fmtScore(reference[index])}）` : null),
+      scoreBar(scores[index], reference ? `（モデルカード${reference.dtype === 'fp32' ? '' : `・${reference.dtype}`} ${fmtScore(reference.scores[index])}）` : null),
     ),
   );
 
@@ -562,7 +581,7 @@ async function initBenchmark() {
   $('benchmark-button').addEventListener('click', () => runExclusive(runBenchmark));
   $('benchmark-download').addEventListener('click', () => {
     const result = state.last.benchmark;
-    if (result) download(`embeddinggemma-benchmark-${result.model.dtype}-${result.model.device}.json`, result);
+    if (result) download(`embeddinggemma-${result.model.model}-benchmark-${result.model.dtype}-${result.model.device}.json`, result);
   });
 }
 
@@ -638,7 +657,7 @@ async function runBenchmark() {
 
     const result = {
       createdAt: new Date().toISOString(),
-      model: { ...state.model, id: MODEL_ID },
+      model: { ...state.model, id: state.model.modelId },
       environment: {
         userAgent: navigator.userAgent,
         hardwareConcurrency: navigator.hardwareConcurrency,
@@ -770,7 +789,7 @@ function renderBenchmark(result, evaluations) {
     el(
       'p',
       { className: 'result-meta' },
-      `${DTYPES[result.model.dtype].label} · ${DEVICE_LABELS[result.model.device]}` +
+      `${modelLabel(result.model)} · ${DEVICE_LABELS[result.model.device]}` +
         (result.model.numThreads ? ` · ${result.model.numThreads}スレッド` : '') +
         ` · 文書${result.dataset.docs}件 / クエリ${result.dataset.queries}件`,
     ),
@@ -792,7 +811,7 @@ initTabs();
 initDims();
 initSearch();
 initSimilarity();
-initCharGen({ $, el, embedCached, runExclusive, fmtMs });
+initCharGen({ $, el, embedCached, runExclusive, fmtMs, currentModel: () => state.model?.model });
 await Promise.all([initModelPanel(), initBenchmark()]);
 updateButtons();
 document.body.dataset.ready = 'true';

@@ -1,7 +1,7 @@
 // 文字生成 tab: EmbeddingGemma writes text one character at a time, always keeping the character
 // that brings the text's embedding closest to a target (public/lib/char-gen.js).
 import { candidateChars, charRecall, generateByEmbedding, orderScore } from './lib/char-gen.js';
-import { documentPrompt, queryPrompt } from './lib/model-config.js';
+import { MODELS, documentPrompt, queryPrompt } from './lib/model-config.js';
 
 const EXAMPLES = {
   invert: '東京タワーは東京都港区にある電波塔です。',
@@ -11,20 +11,20 @@ const INPUT_LABELS = { invert: '元の文（この文の埋め込みを目標に
 // Kana and a few marks are tried at every step; kanji come from a per-target shortlist.
 const ALWAYS_SYMBOLS = '、。々0123456789';
 
-let assets = null;
+const assets = new Map();
 
-/** Vocabulary and the int8 single-character embeddings used for the kanji shortlist. */
-async function loadAssets() {
-  if (assets) return assets;
+/** Vocabulary and the model's int8 single-character embeddings used for the kanji shortlist. */
+async function loadAssets(model) {
+  if (assets.has(model)) return assets.get(model);
   const [vocab, packed] = await Promise.all(
-    ['data/char-vocab.json', 'data/char-vectors.json'].map((file) => fetch(new URL(file, import.meta.url)).then((response) => response.json())),
+    ['data/char-vocab.json', MODELS[model].charVectors].map((file) => fetch(new URL(file, import.meta.url)).then((response) => response.json())),
   );
   const bytes = Uint8Array.from(atob(packed.data), (char) => char.charCodeAt(0));
   const int8 = new Int8Array(bytes.buffer);
   const chars = [...packed.chars];
   const charVectors = chars.map((_, i) => int8.subarray(i * packed.dim, (i + 1) * packed.dim));
-  assets = { vocab, chars, charVectors, dim: packed.dim };
-  return assets;
+  assets.set(model, { vocab, chars, charVectors, dim: packed.dim });
+  return assets.get(model);
 }
 
 function normalize(vector) {
@@ -34,7 +34,7 @@ function normalize(vector) {
   return Float32Array.from(vector, (value) => value / norm);
 }
 
-export function initCharGen({ $, el, embedCached, runExclusive, fmtMs }) {
+export function initCharGen({ $, el, embedCached, runExclusive, fmtMs, currentModel }) {
   let stopRequested = false;
   const mode = () => $('chargen-mode').value;
 
@@ -67,7 +67,7 @@ export function initCharGen({ $, el, embedCached, runExclusive, fmtMs }) {
     $('chargen-note').textContent = '準備中…';
 
     try {
-      const { vocab, chars, charVectors, dim } = await loadAssets();
+      const { vocab, chars, charVectors, dim } = await loadAssets(currentModel());
       const [target] = await embed([(targetMode === 'invert' ? documentPrompt(null) : queryPrompt('search result')) + input]);
       const kana = $('chargen-kana').value === '1' ? [...vocab.hiragana, ...vocab.katakana] : [];
       const always = [...new Set([...kana, ...ALWAYS_SYMBOLS])];

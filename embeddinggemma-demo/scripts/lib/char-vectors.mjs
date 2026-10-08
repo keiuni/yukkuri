@@ -5,13 +5,13 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { MODEL_REVISION, documentPrompt } from '../../public/lib/model-config.js';
+import { documentPrompt } from '../../public/lib/model-config.js';
 
 const CACHE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'test-output', 'char-gen');
 
-/** Unit vectors for `chars`, from the cache or computed with `embedder` (agent/gemma.mjs). */
-export async function charVectorsFor(embedder, chars) {
-  const key = createHash('sha1').update(MODEL_REVISION + chars.join('')).digest('hex').slice(0, 12);
+/** Unit vectors for `chars`, from the cache or computed with `embedder` (agent/gemma.mjs) for model `revision`. */
+export async function charVectorsFor(embedder, chars, revision = embedder.revision) {
+  const key = createHash('sha1').update(revision + chars.join('')).digest('hex').slice(0, 12);
   const file = path.join(CACHE_DIR, `char-vectors-${key}.bin`);
   try {
     const data = new Float32Array((await readFile(file)).buffer.slice(0));

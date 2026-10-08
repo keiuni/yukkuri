@@ -3,18 +3,19 @@
 // embedding is closest to a target (public/lib/char-gen.js). Two kinds of target:
 //   invert  the embedding of a sentence: can the sentence be written back from its embedding?
 //   query   the embedding of a question: what text does the model consider the best answer?
-// Results go to test-output/char-gen/results.json.
+// Results go to test-output/char-gen/results.json (results-v2.json for EmbeddingGemma 2).
 //
 //   npm run char-generate                     # every experiment, greedy and beam 4
 //   npm run char-generate -- invert-tower     # one experiment
 //   npm run char-generate -- --beams 1        # greedy only
+//   npm run char-generate -- --model v2       # EmbeddingGemma 2
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { EmbeddingGemma } from '../agent/gemma.mjs';
 import { candidateChars, charRecall, dot, generateByEmbedding, orderScore, vocabChars } from '../public/lib/char-gen.js';
-import { documentPrompt, queryPrompt } from '../public/lib/model-config.js';
+import { DEFAULT_MODEL, MODELS, documentPrompt, queryPrompt } from '../public/lib/model-config.js';
 import { charVectorsFor } from './lib/char-vectors.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -41,20 +42,27 @@ const option = (name, fallback) => {
 };
 const beams = String(option('beams', '1,4')).split(',').map(Number);
 const shortlist = Number(option('shortlist', 48));
-const optionValues = new Set([option('beams'), option('shortlist')].filter(Boolean));
+const model = option('model', DEFAULT_MODEL);
+if (!MODELS[model]) {
+  console.error(`Unknown model "${model}". Choose from: ${Object.keys(MODELS).join(', ')}`);
+  process.exit(1);
+}
+const optionValues = new Set([option('beams'), option('shortlist'), option('model')].filter(Boolean));
 const wanted = args.filter((arg) => !arg.startsWith('--') && !optionValues.has(arg));
 const experiments = wanted.length ? EXPERIMENTS.filter((e) => wanted.includes(e.id)) : EXPERIMENTS;
 
 await mkdir(OUT, { recursive: true });
 const vocabJson = JSON.parse(await readFile(path.join(ROOT, 'public', 'data', 'char-vocab.json'), 'utf8'));
-const embedder = await EmbeddingGemma.load();
+const embedder = await EmbeddingGemma.load(model);
 embedder.batchSize = 32;
 const asDocument = (texts) => embedder.embed(texts.map((text) => documentPrompt(null) + text));
 
-const file = path.join(OUT, wanted.length ? `results-${wanted.join('+')}.json` : 'results.json');
+const suffix = [...(wanted.length ? [wanted.join('+')] : []), ...(model === DEFAULT_MODEL ? [] : [model])].map((part) => `-${part}`).join('');
+const file = path.join(OUT, `results${suffix}.json`);
 const results = [];
 // Written after every run, so a long session leaves its finished runs behind even if it is stopped.
-const save = () => writeFile(file, `${JSON.stringify({ createdAt: new Date().toISOString(), shortlist, results }, null, 1)}\n`);
+const save = () =>
+  writeFile(file, `${JSON.stringify({ createdAt: new Date().toISOString(), model: MODELS[model].id, revision: MODELS[model].revision, shortlist, results }, null, 1)}\n`);
 
 for (const experiment of experiments) {
   const vocab = experiment.latin ? [...new Set(vocabJson.latin)] : vocabChars(vocabJson);

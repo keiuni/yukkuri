@@ -1,12 +1,15 @@
 # EmbeddingGemma Playground
 
-[google/embeddinggemma-300m](https://huggingface.co/google/embeddinggemma-300m) の ONNX 版
-（[onnx-community/embeddinggemma-300m-ONNX](https://huggingface.co/onnx-community/embeddinggemma-300m-ONNX)）を
+[google/embeddinggemma-300m](https://huggingface.co/google/embeddinggemma-300m)（初代）と
+[google/embeddinggemma-2](https://huggingface.co/google/embeddinggemma-2) の ONNX 版
+（[onnx-community/embeddinggemma-300m-ONNX](https://huggingface.co/onnx-community/embeddinggemma-300m-ONNX)、
+[onnx-community/embeddinggemma-2-ONNX](https://huggingface.co/onnx-community/embeddinggemma-2-ONNX) のテキストモデル）を
 [Transformers.js](https://huggingface.co/docs/transformers.js) でブラウザ内実行し、性能を確かめるためのデモです。
 推論はすべてブラウザ内で行われ、入力テキストは外部に送信されません。
 
 Playwright で画面を実際に操作する E2E 検証も同梱しています。測定結果は
-[docs/results-2026-10-07.md](docs/results-2026-10-07.md) にまとめました。
+[docs/results-2026-10-07.md](docs/results-2026-10-07.md)（初代）と
+[docs/embeddinggemma-2-2026-10-08.md](docs/embeddinggemma-2-2026-10-08.md)（2 との比較）にまとめました。
 
 jev-ultrafast の Jev（次の操作を選ぶ判断役）を EmbeddingGemma に置き換えたブラウザエージェントも入っています
 （下の「Gemma ブラウザエージェント」）。スマホのブラウザで Gemma 系のモデルが動くかを調べるページと、
@@ -23,7 +26,7 @@ EmbeddingGemma に 1 文字ずつ文字を選ばせる実験もあります（[d
 | ミニベンチマーク | 日英の小さな検索データセット（文書63件・クエリ56件、紛らわしい文書入り）で Top-1 / Recall@5 / MRR@10 / nDCG@10 と速度を測定。プロンプト有無 × 次元の比較、言語ペア別、外したクエリの一覧、JSON 保存 |
 | 文字生成 | 文字列に 1 文字ずつ足しては埋め込み、目標（文や質問の埋め込み）にいちばん近づく文字を選び続ける。各ステップの上位候補と類似度を表示 |
 
-モデルパネルでは精度（fp32 / q8 / q4）、実行環境（WASM / WebGPU）、WASM のスレッド数を選べます。
+モデルパネルでは、モデル（初代 / 2）、精度（fp32 / q8 / q4）、実行環境（WASM / WebGPU）、WASM のスレッド数を選べます。
 
 ## 使い方
 
@@ -42,29 +45,37 @@ npm start            # http://127.0.0.1:5173/
 ### モデルを手元に置く（任意）
 
 ```bash
-npm run download-model                 # q8 + q4（約 530 MB）
-npm run download-model -- fp32 q8 q4   # 全部（約 1.8 GB）
+npm run download-model                              # 初代の q8 + q4（約 530 MB）
+npm run download-model -- fp32 q8 q4                # 初代の全部（約 1.8 GB）
+npm run download-model -- --model v2 fp32 q8 q4     # 2 のテキストモデル（約 1.6 GB）
 ```
 
 `models/` に保存したファイルはサーバーが `/models/` で配信し、ブラウザはそちらを優先して読み込みます（無ければ Hub から取得）。
 プロキシ環境では `NODE_USE_ENV_PROXY=1 npm run download-model` のように実行してください（Node 22.21 以降）。
 
-### 精度と実行環境の選び方
+### モデル・精度・実行環境の選び方
 
-| 精度 | サイズ | WASM（CPU）での傾向 |
-| --- | ---: | --- |
-| fp32 | 1.26 GB | 精度はモデルカード通り。WASM では一番速い。ダウンロードが重い |
-| q8 | 331 MB | fp32 とほぼ同じ精度。単発クエリは fp32 の約2倍の時間 |
-| q4 | 217 MB | 一番小さいが WASM では一番遅く、精度もわずかに落ちる |
+| モデル・精度 | サイズ | 実行環境 | 傾向 |
+| --- | ---: | --- | --- |
+| 初代 fp32 | 1.26 GB | WASM / WebGPU | 精度はモデルカード通り。WASM では一番速い。ダウンロードが重い |
+| 初代 q8 | 331 MB | WASM / WebGPU | fp32 とほぼ同じ精度。単発クエリは fp32 の約 2 倍の時間 |
+| 初代 q4 | 217 MB | WASM / WebGPU | 一番小さいが WASM では一番遅く、精度もわずかに落ちる |
+| 2 fp32 | 1.12 GB | WASM / WebGPU | ミニベンチマークの精度は初代より少し高い。WASM で動く 2 はこれだけで、初代 fp32 の 1.2〜1.3 倍の時間 |
+| 2 q8 | 346 MB | WebGPU のみ | 精度は 2 fp32 と同じ（ミニベンチマーク） |
+| 2 q4 | 207 MB | WebGPU のみ | 精度は 2 fp32 と同じ（ミニベンチマーク）。一番軽く、スマホ向き |
 
-- モデルカードの注意書きどおり、EmbeddingGemma は fp16 の活性値に対応していないため fp16 / q4f16 は選択肢から外しています。
-- q4 は `model_no_gather_q4.onnx` を使います（通常の `model_q4.onnx` は WASM が未対応の `GatherBlockQuantized` を含むため）。
-- WebGPU は対応ブラウザでのみ選択できます。この環境（GPU なしのヘッドレス Chromium）では未検証です。
+- どちらのモデルカードも、活性値が fp16 の範囲を超えると注意しているので、fp16 / q4f16 は選択肢から外しています。
+- 初代の q4 は `model_no_gather_q4.onnx` を使います（通常の `model_q4.onnx` は WASM が未対応の `GatherBlockQuantized` を含むため）。
+  2 には no_gather 版がなく、q8・q4 とも `GatherBlockQuantized` を使うので、WASM では選べません。
+- 2 は画像・音声のエンコーダーを外して、テキストモデルだけを読み込みます（`model-config.js` の `textOnlyConfig`）。
+- 2 は類似度が全体に高め（無関係な文どうしでも 0.7 前後）に出ます。順位は問題ありませんが、しきい値は初代と別に決める必要があります。
+- WebGPU は対応ブラウザでのみ選択できます。この環境（GPU なしのヘッドレス Chromium）ではソフトウェア実装の WebGPU で動作だけ確認しました。
 
 ### URL パラメータ
 
 | パラメータ | 例 | 意味 |
 | --- | --- | --- |
+| `model` | `?model=v2` | モデルの初期値（`v1` = 初代、`v2` = EmbeddingGemma 2） |
 | `dtype` | `?dtype=fp32` | 精度の初期値 |
 | `device` | `?device=webgpu` | 実行環境の初期値 |
 | `threads` | `?threads=4` | WASM スレッド数の初期値 |
@@ -81,20 +92,26 @@ npm run download-model -- fp32 q8 q4
 
 npm test                                        # 評価指標の単体テスト（node:test）
 DTYPES=fp32,q8,q4 THREADS=4 npm run test:e2e    # 既定は DTYPES=q8, THREADS=auto
-npm run report                                  # test-output/REPORT.md を生成
+MODEL=v2 DTYPES=fp32 THREADS=4 npm run test:e2e # EmbeddingGemma 2（WASM では fp32 のみ）
+MODEL=v2 DEVICE=webgpu DTYPES=q8,q4 npm run test:e2e   # 2 の q8・q4（WebGPU）
+npm run report                                  # test-output/REPORT.md を生成（全モデル・全精度をまとめる）
+npm run benchmark -- --model v2 --dtype q8,q4   # ミニベンチマークの精度だけを Node（CPU）で測る
 ```
 
 精度ごとに 1 つのページでモデルを読み込み、ユーザーと同じ操作で次を確認します。
 
 1. 初期表示（モデル未読み込みでボタンが無効、クロスオリジン分離が有効、タブのキーボード操作）とスマホ幅で横スクロールが出ないこと
 2. UI からモデルを読み込めること
-3. モデルカードの例を再現できること（順位が一致し、スコア差が fp32 0.005 / q8 0.03 / q4 0.05 未満）
+3. モデルカードの例を再現できること（順位が一致し、スコア差が初代は fp32 0.005 / q8 0.03 / q4 0.05 未満。2 はモデルカードが q4 の値なので q4 0.005 / fp32・q8 0.02 未満）
 4. 日本語 FAQ と日→英の検索で想定解が 1 位になること（アニメ制作の例は全精度で 3 位になる既知の外れのため、順位を記録のみ）
 5. 768 / 512 / 256 / 128 次元のどれでも FAQ の想定解が 1 位で、2 回目以降は埋め込みキャッシュが再利用されること
 6. 類似度マトリクスで「同じ意味の組の最小値 > 違う意味の組の最大値」になること、ツールチップが出ること
 7. ミニベンチマークが完走し（Top-1 > 0.6、MRR@10 > 0.7 の下限チェック）、JSON を保存できること
+8. 文字生成タブで、文の復元を 12 文字まで生成できること
 
 スクリーンショットと数値は `test-output/`（git 管理外）に出力されます。
+ソフトウェア実装の WebGPU では 1 文に数秒かかるので、WebGPU の実行では `-- --grep-invert "mini benchmark|one character"` で 7・8 を外し、
+精度は `npm run benchmark` で測ってください（Node 版はブラウザ版と同じ評価コードで、ブラウザで測れる組み合わせでは値が一致します）。
 
 ## 操作動画の録画
 
@@ -117,14 +134,18 @@ npm run record -- similarity benchmark    # 指定したシナリオだけ
 | `benchmark` | ミニベンチマークを実行し、結果を順に見る |
 | `chargen` | 文字生成タブで、文の復元と質問への「回答」を 1 文字ずつ生成する（fp32） |
 | `phone-check` | スマホ実行チェックを Pixel 7 の画面で開き、EmbeddingGemma と Gemma 3 270M を試す（要 `npm run download-phone-models`） |
+| `v2-compare` | 同じ検索を初代（q8）と EmbeddingGemma 2（fp32）で実行して比べ、2 でミニベンチマークを回す |
 
 字幕の数値はその場の結果から作るので、結果が変わっても字幕と画面が食い違いません。録画中は CPU を録画にも使うため、速度の数値は参考程度にしてください。
+Playwright の録画は、画面の描き替えが多い場面（プログレスバーなど）で実時間より長くなります。そのため、カットや早送りの位置は
+画面の左上に映し込んだ目印（色が変わる 8px の四角。最終の動画では周りの画素で塗りつぶします）を動画の中で探して合わせています。
 
 ## スマホ実行チェック
 
 `phone.html` は、開いた端末のブラウザで次のモデルが動くかを調べるページです。
 
 - EmbeddingGemma 300M（q4 / q8）
+- EmbeddingGemma 2 のテキストモデル（q4 / q8 は WebGPU、fp32 は WASM）
 - Gemma 3 270M（q4f16 / q4 / fp32）
 - Gemma 3 1B（q4f16 / q4）
 - Gemma 4 E2B（q4f16 / q4）
@@ -144,6 +165,8 @@ npm run phone-check -- gemma-3-270m:fp32:wasm --tokens 64 --repeat 2
 | モデル | 実行 | 結果 |
 | --- | --- | --- |
 | EmbeddingGemma q8 | WASM | ✓ 1 文 0.24 秒、タブのメモリ 2.0 GB |
+| EmbeddingGemma 2 fp32 | WASM | ✓ 1 文 0.33 秒、タブのメモリ 2.8 GB（WebGPU がない端末での唯一の選択肢） |
+| EmbeddingGemma 2 q4 / q8 | WebGPU | ✓ 読み込みと検索ができる（175 MB / 314 MB、最大の重み 67 MB / 134 MB） |
 | Gemma 3 270M fp32 | WASM | ✓ 10 トークン/秒、タブのメモリ 4.1 GB |
 | Gemma 3 270M / 1B q4 | WebGPU | ✓ 読み込みと生成ができる（ソフト GPU なので速度は参考外） |
 | Gemma 3 270M q4 | WASM | ✗ 埋め込み表の GatherBlockQuantized が WASM 版 onnxruntime にない（q8 版も同じ演算を使う） |
@@ -168,6 +191,7 @@ EmbeddingGemma は文章を書くモデルではありません。そこで、�
 ```bash
 npm run char-generate                       # 7 つの実験を貪欲法とビーム幅 4 で → test-output/char-gen/results.json
 npm run char-generate -- query-mountain --beams 1
+npm run char-generate -- --model v2         # EmbeddingGemma 2 → test-output/char-gen/results-v2.json
 ```
 
 結果の一部です（fp32・ビーム幅 4）。文章にはならず、意味の濃い漢字を並べた文字列になります。
@@ -208,6 +232,7 @@ npm install                        # .npmrc で onnxruntime-node の CUDA 用ダ
 npm run download-model -- fp32     # EmbeddingGemma（fp32）
 npm run agent                      # 6 タスクを実行（手順書 + EmbeddingGemma）
 npm run agent -- --video           # test-output/agent/videos/*.mp4 も録画
+npm run agent -- --embedding v2    # 判断役を EmbeddingGemma 2 にする（要 npm run download-model -- --model v2 fp32）
 npm run agent -- --decider gemma4  # 判断役を Gemma 4 E2B にして比較（初回に約 3.6 GB をダウンロード）
 npm run agent -- --planner gemma4  # 手順も Gemma 4 E2B が作る（完全ローカル）
 ```
@@ -222,6 +247,7 @@ npm run agent -- --planner gemma4  # 手順も Gemma 4 E2B が作る（完全ロ
 | 手順を書く役 | 判断役（Jev の役） | 成功 | 1 回の判断（中央値 / 最大） | 計画・完了判定（Gemma 4 E2B） |
 | --- | --- | --- | --- | --- |
 | 手順書（Claude が作成） | **EmbeddingGemma 300M** | **6/6** | 0.1 秒 / 3.1 秒 | — |
+| 手順書（Claude が作成） | EmbeddingGemma 2 | 6/6（21 手すべて初代と同じ選択） | 0.13 秒 / 4.6 秒 | — |
 | 手順書（Claude が作成） | Gemma 4 E2B | 3/6 | 7.4 秒 / 59 秒 | — |
 | Gemma 4 E2B | EmbeddingGemma 300M | 3/6 | 0.15 秒 / 2.9 秒 | 計画 1 回 16〜44 秒（中央値 24 秒）<br>完了判定 1 回 5〜16 秒（中央値 9 秒） |
 
@@ -254,12 +280,13 @@ server.mjs                  静的サーバー（COOP/COEP、/models/ の配信�
 public/index.html           画面
 public/app.js               UI ロジック（検索・類似度・ベンチマーク）
 public/embedder.worker.js   Web Worker 内で Transformers.js を実行
-public/lib/model-config.js  モデル ID・リビジョン固定・プロンプト・精度の定義
+public/lib/model-config.js  初代と 2 のモデル ID・リビジョン固定・精度、プロンプト、2 をテキストだけで読む設定
 public/lib/metrics.js       MRL 切り詰め、コサイン類似度、Top-1 / MRR / nDCG
 public/data/benchmark.json  ミニベンチマーク用データセット（手作り）
 public/data/presets.js      検索・類似度のサンプル
 scripts/download-model.mjs  モデルのダウンロード
 scripts/make-report.mjs     E2E 結果の集計
+scripts/benchmark.mjs       ミニベンチマークの精度を Node（CPU）で測る
 scripts/record-demo.mjs     字幕つき操作動画の録画
 scripts/lib/video.mjs       録画の後処理（カット・早送り・MP4 変換）とサーバー起動
 agent/run.mjs               Gemma ブラウザエージェント（ループ・インスペクター・録画）
@@ -274,7 +301,7 @@ public/lib/phone-models.js  候補モデルのサイズ・最大の重み・リ�
 public/chargen-tab.js       文字生成タブ
 public/lib/char-gen.js      1 文字ずつの生成（候補の選び方、貪欲法・ビームサーチ、評価）
 public/data/char-vocab.json 文字生成の候補文字（かな・記号と、よく使う漢字 2,000 字）
-public/data/char-vectors.json 候補文字 1 文字ずつの埋め込み（int8、漢字の絞り込み用）
+public/data/char-vectors.json 候補文字 1 文字ずつの埋め込み（int8、漢字の絞り込み用。2 用は char-vectors-v2.json）
 scripts/phone-check.mjs     スマホ相当の条件で phone.html を動かし、結果とメモリを記録
 scripts/download-phone-models.mjs  スマホ実行チェック用のモデルのダウンロード
 scripts/char-generate.mjs   文字生成の実験
@@ -286,5 +313,5 @@ tests/unit, tests/e2e       単体テスト、Playwright テスト
 
 ## ライセンスについて
 
-モデルの重みは [Gemma Terms of Use](https://ai.google.dev/gemma/terms) に従います。
+初代の重みは [Gemma Terms of Use](https://ai.google.dev/gemma/terms)、EmbeddingGemma 2 の重みは Apache 2.0 に従います。
 ミニベンチマークのデータセットはこのデモ用に書いたもので、MTEB / JMTEB の代わりにはなりません。

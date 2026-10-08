@@ -3,13 +3,20 @@
 //
 //   npm run test:e2e                         # q8 only
 //   DTYPES=fp32,q8,q4 THREADS=4 npm run test:e2e
+//   MODEL=v2 DTYPES=fp32 THREADS=4 npm run test:e2e        # EmbeddingGemma 2 on WASM
+//   MODEL=v2 DEVICE=webgpu DTYPES=q8,q4 npm run test:e2e   # its quantized exports need WebGPU
 //   REMOTE=1 npm run test:e2e                # also load the model from the Hugging Face Hub
 //   npm run report                           # summarize test-output/e2e-*.json
 import { mkdir, writeFile } from 'node:fs/promises';
 
 import { expect, test } from '@playwright/test';
 
+import { SEARCH_PRESETS } from '../../public/data/presets.js';
+import { MODELS } from '../../public/lib/model-config.js';
+
 const OUTPUT_DIR = 'test-output';
+const MODEL = process.env.MODEL ?? 'v1';
+const DEVICE = process.env.DEVICE ?? 'wasm';
 const DTYPES = (process.env.DTYPES ?? 'q8')
   .split(',')
   .map((dtype) => dtype.trim())
@@ -17,12 +24,16 @@ const DTYPES = (process.env.DTYPES ?? 'q8')
 const THREADS = process.env.THREADS ?? 'auto';
 const SLOW = 10 * 60 * 1000;
 
-// fp32 scores printed in the onnx-community model card for the "Red Planet" example.
-const MODEL_CARD_SCORES = [0.30109718441963196, 0.6358831524848938, 0.4930494725704193, 0.48887503147125244];
-// fp32 must match the published numbers; quantized weights drift more the fewer bits they keep.
-const MODEL_CARD_TOLERANCE = { fp32: 0.005, q8: 0.03, q4: 0.05 };
+// Scores printed in the onnx-community model card for the "Red Planet" example: fp32 for the first
+// model, q4 for EmbeddingGemma 2. The published dtype must match closely; the others drift more
+// the fewer bits they keep (and, for EmbeddingGemma 2, are compared with q4 numbers).
+const MODEL_CARD = SEARCH_PRESETS.find((preset) => preset.id === 'model-card').referenceScores[MODEL];
+const MODEL_CARD_TOLERANCE = {
+  v1: { fp32: 0.005, q8: 0.03, q4: 0.05 },
+  v2: { fp32: 0.02, q8: 0.02, q4: 0.005 },
+}[MODEL];
 
-const screenshotPath = (dtype, name) => `${OUTPUT_DIR}/screenshots/${dtype}-${name}.png`;
+const screenshotPath = (dtype, name) => `${OUTPUT_DIR}/screenshots/${MODEL === 'v1' ? '' : `${MODEL}-`}${dtype}-${name}.png`;
 
 async function writeJson(file, data) {
   await mkdir(OUTPUT_DIR, { recursive: true });
@@ -78,12 +89,12 @@ test('loads the model straight from the Hugging Face Hub', async ({ page }) => {
 });
 
 for (const dtype of DTYPES) {
-  test.describe(`EmbeddingGemma ${dtype} (WASM)`, () => {
+  test.describe(`${MODELS[MODEL].name} ${dtype} (${DEVICE})`, () => {
     test.describe.configure({ mode: 'serial' });
 
     /** @type {import('@playwright/test').Page} */
     let page;
-    const record = { dtype, threads: THREADS };
+    const record = { model: MODEL, dtype, device: DEVICE, threads: THREADS };
 
     test.beforeAll(async ({ browser }) => {
       page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
@@ -94,25 +105,29 @@ for (const dtype of DTYPES) {
     });
 
     test.afterAll(async () => {
-      await writeJson(`e2e-${dtype}.json`, record);
+      await writeJson(`e2e-${MODEL}-${dtype}-${DEVICE}.json`, record);
       await page?.close();
     });
 
     test('loads the model from the UI', async () => {
       test.setTimeout(SLOW);
+      // By id: the label's accessible name also contains the option texts, and サンプル's options mention モデル.
+      await page.locator('#model').selectOption(MODEL);
+      await page.getByLabel('実行環境').selectOption(DEVICE);
       await page.getByLabel('精度').selectOption(dtype);
-      await page.getByLabel('実行環境').selectOption('wasm');
-      await page.getByLabel('スレッド数').selectOption(THREADS);
+      if (DEVICE === 'wasm') await page.getByLabel('スレッド数').selectOption(THREADS);
       await page.getByRole('button', { name: 'モデルを読み込む' }).click();
 
       await expect(page.locator('#model-status')).toHaveAttribute('data-state', /ready|error/, { timeout: SLOW });
       await expect(page.locator('#model-status')).toHaveAttribute('data-state', 'ready');
-      await expect(page.locator('#model-facts')).toContainText('WASM');
+      await expect(page.locator('#model-facts')).toContainText(DEVICE === 'wasm' ? 'WASM' : 'WebGPU');
+      await expect(page.locator('#model-facts')).toContainText(MODELS[MODEL].name);
       await expect(page.getByRole('button', { name: '検索する' })).toBeEnabled();
 
-      record.model = await page.evaluate(() => window.__demo.model);
-      expect(record.model.dtype).toBe(dtype);
-      expect(record.model.crossOriginIsolated).toBe(true);
+      record.loaded = await page.evaluate(() => window.__demo.model);
+      expect(record.loaded.model).toBe(MODEL);
+      expect(record.loaded.dtype).toBe(dtype);
+      expect(record.loaded.crossOriginIsolated).toBe(true);
     });
 
     test('reproduces the model card example', async () => {
@@ -123,9 +138,11 @@ for (const dtype of DTYPES) {
       await expect(page.locator('#search-results')).toContainText('モデルカード');
 
       const { ranking } = await page.evaluate(() => window.__demo.last.search);
-      expect(ranking.map((row) => row.index)).toEqual([1, 2, 3, 0]);
-      const maxDiff = Math.max(...ranking.map((row) => Math.abs(row.score - MODEL_CARD_SCORES[row.index])));
-      record.modelCard = { scores: ranking.sort((a, b) => a.index - b.index).map((row) => row.score), maxDiff };
+      // Mars first; the order of the others is the one the model card shows for each model.
+      const expectedOrder = MODEL_CARD.scores.map((score, index) => ({ score, index })).sort((a, b) => b.score - a.score);
+      expect(ranking.map((row) => row.index)).toEqual(expectedOrder.map((row) => row.index));
+      const maxDiff = Math.max(...ranking.map((row) => Math.abs(row.score - MODEL_CARD.scores[row.index])));
+      record.modelCard = { reference: MODEL_CARD, scores: ranking.sort((a, b) => a.index - b.index).map((row) => row.score), maxDiff };
       expect(maxDiff).toBeLessThan(MODEL_CARD_TOLERANCE[dtype]);
       await page.screenshot({ path: screenshotPath(dtype, 'search'), fullPage: true });
     });
@@ -216,7 +233,7 @@ for (const dtype of DTYPES) {
       expect(main.overall.mrr10).toBeGreaterThan(0.7);
 
       const [file] = await Promise.all([page.waitForEvent('download'), save.click()]);
-      expect(file.suggestedFilename()).toBe(`embeddinggemma-benchmark-${dtype}-wasm.json`);
+      expect(file.suggestedFilename()).toBe(`embeddinggemma-${MODEL}-benchmark-${dtype}-${DEVICE}.json`);
       await page.screenshot({ path: screenshotPath(dtype, 'benchmark'), fullPage: true });
     });
 
@@ -225,6 +242,8 @@ for (const dtype of DTYPES) {
       await page.getByRole('tab', { name: '文字生成' }).click();
       await page.getByLabel('漢字の候補').selectOption('16');
       await page.getByLabel('最大文字数').selectOption('12');
+      // Without kana a step tries about 30 characters instead of 200, so even q4 on WASM finishes in minutes.
+      await page.locator('#chargen-kana').selectOption('0');
       await page.getByRole('button', { name: '生成する' }).click();
       await expect(page.locator('#chargen-results')).toHaveAttribute('data-done', /true|error/, { timeout: SLOW });
       await expect(page.locator('#chargen-results')).toHaveAttribute('data-done', 'true');
