@@ -1,0 +1,121 @@
+{
+  "name": "Longer Japanese small talk",
+  "version": 1,
+  "description": "More everyday conversations for the Japanese chat test (scripts/ja-chat.mjs --data ja-talk): four or five turns each, the model's own replies fed back. They cover small talk, advice, drafting and shortening a message inside a conversation, a dialect, role play, remembering a detail after a change of topic, and a few facts. The user's turns are fixed, so they are worded to follow any reasonable reply. `includes` lists groups of strings; every group must match at least one of its strings. Hand-written for this demo.",
+  "categories": [
+    { "id": "talk", "label": "会話（4〜5 往復）" }
+  ],
+  "conversations": [
+    {
+      "id": "talk-dinner",
+      "category": "talk",
+      "about": "冷蔵庫の中身から晩ごはんを決める（くだけた口調）",
+      "turns": [
+        { "prompt": "今日の晩ごはん、何にしよう。冷蔵庫に卵とキャベツと豚肉があるよ。" },
+        { "prompt": "いいね、それにする！作るのに何分くらいかかる？" },
+        { "prompt": "あ、ごはん炊くの忘れてた…どうしよう。" },
+        { "prompt": "助かった、ありがとう！" }
+      ]
+    },
+    {
+      "id": "talk-apology",
+      "category": "talk",
+      "about": "けんかの相談から、謝るメッセージを書いて短く直すまで",
+      "turns": [
+        { "prompt": "昨日、友だちとちょっとケンカしちゃった。LINEの返事も来ない…" },
+        { "prompt": "私が約束の時間に30分遅れたのが原因なんだ。" },
+        { "prompt": "謝りたいんだけど、なんて送ればいいかな？" },
+        { "prompt": "もうちょっと短くして。" }
+      ]
+    },
+    {
+      "id": "talk-weekend",
+      "category": "talk",
+      "about": "雨の週末の過ごし方（雑談）",
+      "turns": [
+        { "prompt": "やっと金曜日！週末なにしようかなー" },
+        { "prompt": "雨らしいんだよね。家でできることがいいな。" },
+        { "prompt": "家で映画を見るのもありかな。どんなジャンルがおすすめ？" },
+        { "prompt": "じゃあそれにする。ポップコーンも作ろうかな笑" }
+      ]
+    },
+    {
+      "id": "talk-dog",
+      "category": "talk",
+      "about": "途中で話が変わっても、犬の名前と年を覚えているか",
+      "turns": [
+        { "prompt": "うちの犬、ポチっていうんだけど、最近ごはんを残すんだよね。" },
+        { "prompt": "もう12歳で、けっこうおじいちゃんなんだ。" },
+        { "prompt": "やっぱり病院に連れて行ったほうがいいかな？" },
+        { "prompt": "話は変わるけど、今日の夜はカレーにする予定。" },
+        { "prompt": "ところで、うちの犬の名前と年、覚えてる？", "includes": [["ポチ"], ["12", "１２", "十二"]] }
+      ]
+    },
+    {
+      "id": "talk-meeting",
+      "category": "talk",
+      "about": "仕事の相談（丁寧語）から、上司への短い報告文まで",
+      "turns": [
+        { "prompt": "来週の会議の資料がまだできていなくて、焦っています。" },
+        { "prompt": "会議は来週の火曜日です。今日は木曜日です。" },
+        { "prompt": "何から手をつければいいでしょうか？" },
+        { "prompt": "上司に進み具合を伝えるメッセージを、短く書いてもらえますか？" }
+      ]
+    },
+    {
+      "id": "talk-kansai",
+      "category": "talk",
+      "about": "関西弁で話してもらう（口調の指定を守れるか）",
+      "turns": [
+        { "prompt": "これから関西弁で話してくれへん？" },
+        { "prompt": "最近ちょっと太ってもうてん。" },
+        { "prompt": "運動は苦手やねんけど、なんかええ方法ある？" },
+        { "prompt": "ほな、明日から階段使うわ！" }
+      ]
+    },
+    {
+      "id": "talk-sleep",
+      "category": "talk",
+      "about": "寝つきが悪いという相談",
+      "turns": [
+        { "prompt": "最近、夜なかなか寝つけないんだよね。" },
+        { "prompt": "寝る前はだいたいベッドでスマホ見てる。" },
+        { "prompt": "夕方にコーヒー飲むこともあるけど、関係ある？" },
+        { "prompt": "今夜からやってみる。おやすみ！" }
+      ]
+    },
+    {
+      "id": "talk-hokkaido",
+      "category": "talk",
+      "about": "北海道旅行の相談（事実を含む）",
+      "turns": [
+        { "prompt": "夏休みに北海道に行きたいんだけど、何泊くらいがいいかな？" },
+        { "prompt": "札幌と小樽に行きたい。札幌から小樽って電車で行ける？" },
+        { "prompt": "小樽で食べたほうがいいものある？" },
+        { "prompt": "予算は2人で10万円くらいなんだけど、足りるかな？" }
+      ]
+    },
+    {
+      "id": "talk-cat",
+      "category": "talk",
+      "about": "猫の話（ユーモアと、なりきり）",
+      "turns": [
+        { "prompt": "猫がキーボードの上で寝てて、仕事ができない…" },
+        { "prompt": "どかすと怒るんだよね笑" },
+        { "prompt": "猫の気持ちになって、ひとことしゃべってみて。" },
+        { "prompt": "かわいい笑 ちょっと元気出た、ありがとう。" }
+      ]
+    },
+    {
+      "id": "talk-english",
+      "category": "talk",
+      "about": "英語の勉強の相談と、ひとことの訳",
+      "turns": [
+        { "prompt": "英語の勉強を始めたいけど、いつも三日坊主で終わっちゃう。" },
+        { "prompt": "1日10分くらいならできそう。" },
+        { "prompt": "「よろしくお願いします」って、英語でなんて言えばいい？" },
+        { "prompt": "なるほど！今度使ってみる。" }
+      ]
+    }
+  ]
+}

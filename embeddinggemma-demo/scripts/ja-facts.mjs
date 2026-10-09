@@ -3,7 +3,8 @@
 // public/data/ja-facts.json several times with different seeds (same settings as scripts/ja-chat.mjs,
 // no system prompt) and checks the answer for the required words.
 //
-//   LLAMA_SERVER=/path/to/llama-server node scripts/ja-facts.mjs                 # every model, 5 seeds
+//   LLAMA_SERVER=/path/to/llama-server node scripts/ja-facts.mjs                 # every GGUF model, 5 seeds
+//   node scripts/ja-facts.mjs gemma4-e4b-litert                                     # a phone build (LiteRT-LM)
 //   LLAMA_SERVER=/path/to/llama-server node scripts/ja-facts.mjs gemma4-e2b --seeds 3
 //
 // Results go to test-output/ja-chat/facts-<model>.json.
@@ -11,9 +12,9 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { LlamaServer } from '../agent/llama.mjs';
 import { includesAll } from '../public/lib/ja-checks.js';
-import { CHAT_MODELS, serverSpec } from './lib/chat-models.mjs';
+import { CHAT_MODELS, GGUF_MODEL_KEYS } from './lib/chat-models.mjs';
+import { requestOptions, startChatServer } from './lib/chat-server.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'test-output', 'ja-chat');
@@ -27,19 +28,18 @@ const keys = args.filter((arg, i) => !arg.startsWith('-') && (seedsIndex < 0 || 
 const { items } = JSON.parse(await readFile(path.join(ROOT, 'public', 'data', 'ja-facts.json'), 'utf8'));
 
 await mkdir(OUT, { recursive: true });
-for (const key of keys.length ? keys : Object.keys(CHAT_MODELS)) {
+for (const key of keys.length ? keys : GGUF_MODEL_KEYS) {
   const model = CHAT_MODELS[key];
-  const server = await LlamaServer.start(serverSpec(key), PORT);
+  const server = await startChatServer(key, PORT);
+  // LiteRT-LM answers seed 0 exactly like seed 1, so the phone builds start at 1 to get as many different samples.
+  const firstSeed = model.runtime === 'litert-lm' ? 1 : 0;
   try {
     const answers = [];
     for (const item of items) {
-      for (let seed = 0; seed < seeds; seed++) {
+      for (let seed = firstSeed; seed < firstSeed + seeds; seed++) {
         const json = await server.post('/v1/chat/completions', {
           messages: [{ role: 'user', content: item.prompt }],
-          max_tokens: MAX_TOKENS,
-          seed,
-          ...model.sampling,
-          ...(model.templateKwargs ? { chat_template_kwargs: model.templateKwargs } : {}),
+          ...requestOptions(model, { maxTokens: MAX_TOKENS, seed }),
         });
         const text = (json.choices[0].message.content ?? '').replace(/<think>[\s\S]*?(<\/think>|$)/, '').trim();
         answers.push({ id: item.id, seed, right: includesAll(text, item.includes), text });

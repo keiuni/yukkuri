@@ -19,6 +19,8 @@ EmbeddingGemma 2 がどんなときに間違えるかは、失敗パターン別
 （[docs/embeddinggemma-2-failures-2026-10-08.md](docs/embeddinggemma-2-failures-2026-10-08.md)）。
 スマホで動く小型モデル（Gemma 4 E2B / E4B など）が日本語の返信や会話にどこまで使えるかも比べました
 （[docs/japanese-chat-2026-10-08.md](docs/japanese-chat-2026-10-08.md)）。
+Gemma 4 のスマホ版（アプリが使う LiteRT-LM 形式）での会話の例と、アプリへの組み込み方は
+[docs/gemma4-phone-2026-10-09.md](docs/gemma4-phone-2026-10-09.md) にあります。
 
 ![検索タブ](docs/screenshots/search.png)
 
@@ -344,6 +346,32 @@ LLAMA_SERVER=/path/to/llama-server node scripts/ja-facts.mjs
 node scripts/ja-chat-judge.mjs pack 1 && node scripts/ja-chat-judge.mjs score
 ```
 
+## Gemma 4 のスマホ版（会話の例・アプリへの組み込み）
+
+結果は [docs/gemma4-phone-2026-10-09.md](docs/gemma4-phone-2026-10-09.md) にまとめました。
+
+- Gemma 4 E4B に、新しい会話 10 本（4〜5 往復、[public/data/ja-talk.json](public/data/ja-talk.json)）を答えさせた例があります。
+- スマホのアプリが使うのと同じファイル（LiteRT-LM 形式）で動かし、GGUF 版とモデル名を伏せて比べました。
+- スマホでの速さ・メモリと、Android / iOS のアプリに組み込む方法をまとめました。
+
+| モデル | そのまま使える（68 回答） | 新しい会話 | 事実 10 問 × 5 回 |
+| --- | ---: | ---: | ---: |
+| Gemma 4 E4B（GGUF 版） | 79% | 77% | 96% |
+| Gemma 4 E4B（スマホ版） | 73% | 71% | 86% |
+| Gemma 4 E2B（GGUF 版） | 65% | 67% | 66% |
+| Gemma 4 E2B（スマホ版） | 43% | 33% | 58% |
+
+スマホ版の E4B は GGUF 版とほぼ同じ質でしたが、E2B のスマホ版ははっきり落ちました。
+
+LiteRT-LM のコマンドは `pip install litert-lm` で入ります。パスが通っていなければ `LITERT_LM` に指定します。
+
+```bash
+npm run download-chat-models -- gemma4-e4b-litert gemma4-e2b-litert   # スマホ版のファイル（3.7 GB + 2.6 GB）
+npm run ja-chat -- --short --data ja-talk gemma4-e4b-litert            # 新しい会話 10 本
+npm run ja-chat -- --short gemma4-e4b-litert                           # 前回の 27 問
+node scripts/ja-chat-judge.mjs pack 4 --tag phone --runs gemma4-e4b-short,gemma4-e4b-litert-short   # 名前を伏せた比較
+```
+
 ## 構成
 
 ```
@@ -358,6 +386,7 @@ public/data/presets.js      検索・類似度のサンプル（「苦手な例�
 public/data/failure-probes.json  失敗パターン別の問題集（16 種類・219 問、正解のない 18 問、無関係な候補）
 public/lib/probe-metrics.js 問題集の採点（違いを無視した組、AUC、振り分け、文字の重なり）
 public/data/ja-chat.json, ja-facts.json  日本語の返信・会話の問題と、事実の問題
+public/data/ja-talk.json    4〜5 往復の会話 10 本（雑談・相談・方言・なりきり・途中で話が変わっても覚えているか）
 public/lib/ja-checks.js     日本語の回答の機械的なチェック（他の言語の混入、繰り返し、字数・箇条書き、必要な語）
 scripts/download-model.mjs  モデルのダウンロード
 scripts/make-report.mjs     E2E 結果の集計
@@ -367,7 +396,9 @@ scripts/failure-report.mjs  問題集と長い文書の結果の比較表
 scripts/ja-chat.mjs         スマホ向けの小型モデルに日本語の返信・会話・書き換え・知識の問題を解かせる（llama-server）
 scripts/ja-chat-judge.mjs   その回答をモデル名を伏せて採点用に並べ、採点結果を集計する
 scripts/ja-facts.mjs        日常の事実 10 問を、乱数の種を変えて 5 回ずつ聞く
-scripts/download-chat-models.mjs, scripts/lib/chat-models.mjs  比べた 7 モデル（GGUF、リビジョン固定、推奨サンプリング）
+scripts/download-chat-models.mjs, scripts/lib/chat-models.mjs  比べた 7 モデル（GGUF）と Gemma 4 のスマホ版（LiteRT-LM）。リビジョン固定、推奨サンプリング
+scripts/lib/litert-server.mjs  LiteRT-LM（スマホのアプリが使う実行ライブラリ）の OpenAI 互換サーバーを起動する
+scripts/lib/chat-server.mjs    モデルに合ったサーバー（llama-server か LiteRT-LM）を選び、リクエストの設定をそろえる
 scripts/long-text.mjs       正解の文書を無関係な文書の中に埋めたときの検索精度
 scripts/record-demo.mjs     字幕つき操作動画の録画
 scripts/lib/video.mjs       録画の後処理（カット・早送り・MP4 変換）とサーバー起動

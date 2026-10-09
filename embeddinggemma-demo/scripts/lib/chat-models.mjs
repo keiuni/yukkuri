@@ -1,5 +1,6 @@
 // Small chat models that run on a phone (in an app or in the browser), as GGUF files for llama.cpp's
-// llama-server, for the Japanese reply and conversation test (scripts/ja-chat.mjs).
+// llama-server (and, at the end, Gemma 4's phone builds for LiteRT-LM), for the Japanese reply and
+// conversation test (scripts/ja-chat.mjs).
 // Each model gets the sampling its model card recommends, with thinking turned off: a chat app wants
 // the reply right away. Revisions are pinned (2026-10-08).
 export const CHAT_MODELS = {
@@ -72,10 +73,39 @@ export const CHAT_MODELS = {
     sampling: { temperature: 1.0, top_p: 1.0, top_k: 20, min_p: 0, presence_penalty: 2.0 },
     templateKwargs: { enable_thinking: false },
   },
+  // Gemma 4 as Google ships it for phones: the LiteRT-LM files that Android and iOS apps (and the Google AI
+  // Edge Gallery app) run, with their own mix of 2-, 4- and 8-bit weights. They run on LiteRT-LM instead of
+  // llama.cpp (scripts/lib/litert-server.mjs). Revisions pinned 2026-10-09.
+  'gemma4-e4b-litert': {
+    name: 'Gemma 4 E4B（スマホ版）',
+    repo: 'litert-community/gemma-4-E4B-it-litert-lm',
+    revision: '2eee7ac325f20eb8c9ac1d0e972f7c84663062da',
+    file: 'gemma-4-E4B-it.litertlm',
+    quant: '2・4・8 ビット混合（LiteRT-LM）',
+    runtime: 'litert-lm',
+    phone: 'アプリ（LiteRT-LM の Kotlin / Swift API、Google AI Edge Gallery）',
+    sampling: { temperature: 1.0, top_p: 0.95, top_k: 64 },
+    extraBody: { reasoning_effort: 'none' },
+  },
+  'gemma4-e2b-litert': {
+    name: 'Gemma 4 E2B（スマホ版）',
+    repo: 'litert-community/gemma-4-E2B-it-litert-lm',
+    revision: 'b3ca0d2f076785a8f4b2219ddbd2bdb99954eae1',
+    file: 'gemma-4-E2B-it.litertlm',
+    quant: '2・4・8 ビット混合（LiteRT-LM）',
+    runtime: 'litert-lm',
+    phone: 'アプリ（LiteRT-LM の Kotlin / Swift API、Google AI Edge Gallery）',
+    sampling: { temperature: 1.0, top_p: 0.95, top_k: 64 },
+    extraBody: { reasoning_effort: 'none' },
+  },
 };
 
-/** The llama-server spec of a chat model: llama.mjs starts it like a Liquid AI model. */
+/** The models compared in the first test: everything but the phone builds. */
+export const GGUF_MODEL_KEYS = Object.keys(CHAT_MODELS).filter((key) => !CHAT_MODELS[key].runtime);
+
+/** The llama-server spec of a GGUF chat model: llama.mjs starts it like a Liquid AI model. */
 export function serverSpec(key) {
   const model = CHAT_MODELS[key];
+  if (model.runtime === 'litert-lm') throw new Error(`${key} runs on LiteRT-LM, not llama-server`);
   return { ...model, kind: 'chat', args: ['-c', '8192', '--jinja'] };
 }

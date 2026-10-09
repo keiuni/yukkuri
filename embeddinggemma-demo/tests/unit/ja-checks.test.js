@@ -3,9 +3,11 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { checkReply, countBullets, findLoop, includesAll, scriptStats, visibleLength } from '../../public/lib/ja-checks.js';
-import { CHAT_MODELS, serverSpec } from '../../scripts/lib/chat-models.mjs';
+import { CHAT_MODELS, GGUF_MODEL_KEYS, serverSpec } from '../../scripts/lib/chat-models.mjs';
+import { requestOptions } from '../../scripts/lib/chat-server.mjs';
 
 const data = JSON.parse(readFileSync(new URL('../../public/data/ja-chat.json', import.meta.url), 'utf8'));
+const talk = JSON.parse(readFileSync(new URL('../../public/data/ja-talk.json', import.meta.url), 'utf8'));
 
 test('script stats count Japanese letters and flag Chinese and Korean', () => {
   assert.equal(scriptStats('了解！少し遅れるね').jaRatio, 1);
@@ -39,16 +41,35 @@ test('checkReply reports each problem in words', () => {
 
 test('every test item is well formed and every model can be served', () => {
   const ids = new Set();
-  for (const item of [...data.items, ...data.conversations]) {
+  const categories = [...data.categories, ...talk.categories];
+  for (const item of [...data.items, ...data.conversations, ...talk.conversations]) {
     assert.ok(!ids.has(item.id), item.id);
     ids.add(item.id);
-    assert.ok(data.categories.some((category) => category.id === item.category), item.id);
+    assert.ok(categories.some((category) => category.id === item.category), item.id);
   }
   for (const conversation of data.conversations) assert.equal(conversation.turns.length, 3, conversation.id);
-  for (const key of Object.keys(CHAT_MODELS)) {
-    const spec = serverSpec(key);
-    assert.match(spec.file, /\.gguf$/);
-    assert.match(spec.revision, /^[0-9a-f]{40}$/);
-    assert.ok(spec.args.includes('--jinja'));
+  for (const conversation of talk.conversations) assert.ok(conversation.turns.length >= 4, conversation.id);
+  for (const [key, model] of Object.entries(CHAT_MODELS)) {
+    assert.match(model.revision, /^[0-9a-f]{40}$/);
+    if (model.runtime === 'litert-lm') {
+      assert.match(model.file, /\.litertlm$/);
+      assert.throws(() => serverSpec(key), /LiteRT-LM/);
+    } else {
+      const spec = serverSpec(key);
+      assert.match(spec.file, /\.gguf$/);
+      assert.ok(spec.args.includes('--jinja'));
+    }
   }
+  assert.equal(GGUF_MODEL_KEYS.length, 7);
+});
+
+test('requests turn thinking off the way each server understands', () => {
+  const gguf = requestOptions(CHAT_MODELS['gemma4-e4b'], { maxTokens: 512, seed: 0 });
+  assert.deepEqual(gguf.chat_template_kwargs, { enable_thinking: false });
+  assert.equal(gguf.max_tokens, 512);
+  const phone = requestOptions(CHAT_MODELS['gemma4-e4b-litert'], { maxTokens: 512, seed: 0 });
+  assert.equal(phone.reasoning_effort, 'none');
+  assert.equal(phone.max_completion_tokens, 512);
+  assert.equal(phone.chat_template_kwargs, undefined);
+  assert.deepEqual({ temperature: phone.temperature, top_p: phone.top_p, top_k: phone.top_k }, { temperature: 1.0, top_p: 0.95, top_k: 64 });
 });

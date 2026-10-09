@@ -4,6 +4,7 @@
 //   node scripts/ja-chat-judge.mjs pack 1      # write judge packets for pass 1 (answers shuffled, models hidden)
 //   node scripts/ja-chat-judge.mjs score       # combine every pass's judgments with the mechanical checks
 //   node scripts/ja-chat-judge.mjs pack 1 --short / score --short   # the same for the runs with ja-chat.mjs --short
+//   node scripts/ja-chat-judge.mjs pack 4 --tag phone --runs gemma4-e4b-short,gemma4-e4b-litert-short   # exactly these runs
 //
 // `pack` writes test-output/ja-chat/judge/pass<N>-<part>.md (what a judge reads) and pass<N>-key.json
 // (which label is which model). A judge (here: a separate Claude agent per packet, given only the
@@ -14,12 +15,17 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { mean } from '../public/lib/metrics.js';
-import { CHAT_MODELS } from './lib/chat-models.mjs';
+import { CHAT_MODELS, GGUF_MODEL_KEYS } from './lib/chat-models.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = path.join(ROOT, 'test-output', 'ja-chat');
 const JUDGE = path.join(DIR, 'judge');
-const data = JSON.parse(await readFile(path.join(ROOT, 'public', 'data', 'ja-chat.json'), 'utf8'));
+const readData = async (name) => JSON.parse(await readFile(path.join(ROOT, 'public', 'data', `${name}.json`), 'utf8'));
+const chat = await readData('ja-chat');
+const talk = await readData('ja-talk');
+// The longer conversations of ja-talk.json (ja-chat.mjs --data ja-talk) are judged like the three-turn ones.
+const data = { categories: [...chat.categories, ...talk.categories], items: chat.items, conversations: [...chat.conversations, ...talk.conversations] };
+const talkIds = talk.conversations.map((conversation) => conversation.id);
 
 // What the judge needs to know to check facts (the items' own wording does not give the answers).
 const REFERENCE = {
@@ -29,12 +35,19 @@ const REFERENCE = {
   'knowledge-mutsuki': '睦月（むつき）。',
   'knowledge-kodomo': '5 月 5 日。',
   'conv-kyoto': '京都の紅葉の見ごろは、例年 11 月中旬〜12 月上旬。',
+  'talk-dog': '犬の名前はポチ、12 歳。',
+  'talk-meeting': '今日は木曜日なので、来週火曜日の会議までに使える平日は金曜日と月曜日の 2 日（土日を除く）。',
+  'talk-hokkaido': '札幌〜小樽は JR 函館本線で、快速なら約 30〜40 分、普通列車で約 50 分。電車で行ける。',
+  'talk-english': '「よろしくお願いします」にぴったり重なる英語はなく、場面によって Nice to meet you. / I look forward to working with you. / Thank you in advance. などを使い分ける。',
 };
 
 const PARTS = {
   replies: (id) => id.startsWith('reply-'),
   tasks: (id) => id.startsWith('rewrite-') || id.startsWith('knowledge-'),
   conversations: (id) => id.startsWith('conv-'),
+  // The ten longer conversations make two packets, so that no judge reads much more than the others.
+  talk1: (id) => talkIds.indexOf(id) >= 0 && talkIds.indexOf(id) < talkIds.length / 2,
+  talk2: (id) => talkIds.indexOf(id) >= talkIds.length / 2,
 };
 
 const RUBRIC = `あなたは日本語の文章の採点者です。小さな言語モデルたちの回答を、モデル名を伏せて並べています（A, B, … はモデルごとにランダムに付けた記号で、問題ごとに付け直しています）。
@@ -66,15 +79,30 @@ function shuffle(items, seed) {
 }
 
 // --short judges the runs made with a system prompt asking for short replies (scripts/ja-chat.mjs --short)
-// side by side with the same models' plain runs, so that one judge compares both.
-const variant = process.argv.includes('--short') ? 'short' : '';
+// side by side with the same models' plain runs, so that one judge compares both. --tag <name> --runs a,b
+// judges exactly the named runs (test-output/ja-chat/<run>.json and <run>-talk.json, whichever exist).
+const option = (name) => {
+  const index = process.argv.indexOf(`--${name}`);
+  return index > 0 ? process.argv[index + 1] : undefined;
+};
+const namedRuns = option('runs')?.split(',');
+const variant = option('tag') ?? (process.argv.includes('--short') ? 'short' : '');
 const prefix = (pass) => `pass${pass}${variant ? `-${variant}` : ''}`;
 const modelName = (key) => `${CHAT_MODELS[key.replace(/-short$/, '')].name}${key.endsWith('-short') ? '（短く答えるよう指示）' : ''}`;
+const COLUMNS = { reply: '返信', conversation: '会話', rewrite: '書き換え', knowledge: '知識', talk: '長い会話' };
 
 async function loadRuns() {
   const runs = {};
   const read = async (file) => JSON.parse(await readFile(path.join(DIR, file), 'utf8'));
-  for (const key of Object.keys(CHAT_MODELS)) {
+  if (namedRuns) {
+    for (const run of namedRuns) {
+      const found = (await Promise.all([`${run}.json`, `${run}-talk.json`].map((file) => read(file).catch(() => null)))).filter(Boolean);
+      if (!found.length) throw new Error(`No results for ${run} in ${DIR}`);
+      runs[run] = { ...found[0], answers: found.flatMap((part) => part.answers) };
+    }
+    return runs;
+  }
+  for (const key of GGUF_MODEL_KEYS) {
     try {
       if (!variant) {
         runs[key] = await read(`${key}.json`);
@@ -93,12 +121,15 @@ async function pack(pass) {
   const runs = await loadRuns();
   const models = Object.keys(runs);
   const key = {};
+  const written = [];
   await mkdir(JUDGE, { recursive: true });
   for (const [part, belongs] of Object.entries(PARTS)) {
     const blocks = [];
     const units = [...data.items.map((item) => item.id), ...data.conversations.map((c) => c.id)].filter(belongs);
     for (const [u, unit] of units.entries()) {
-      const order = shuffle(models, pass * 1000 + u * 37 + part.length);
+      const present = models.filter((model) => runs[model].answers.some((a) => a.id === unit || a.conversation === unit));
+      if (!present.length) continue;
+      const order = shuffle(present, pass * 1000 + u * 37 + part.length);
       const labels = Object.fromEntries(order.map((model, i) => [String.fromCharCode(65 + i), model]));
       key[unit] = labels;
       const conversation = data.conversations.find((c) => c.id === unit);
@@ -121,17 +152,19 @@ async function pack(pass) {
       }
       blocks.push(lines.join('\n\n'));
     }
+    if (!blocks.length) continue;
     await writeFile(path.join(JUDGE, `${prefix(pass)}-${part}.md`), `${RUBRIC}\n\n${blocks.join('\n\n---\n\n')}\n`);
+    written.push(`${prefix(pass)}-${part}.md`);
   }
   await writeFile(path.join(JUDGE, `${prefix(pass)}-key.json`), `${JSON.stringify(key, null, 2)}\n`);
-  console.log(`Packed pass ${pass} for ${models.length} models: ${Object.keys(PARTS).map((p) => `${prefix(pass)}-${p}.md`).join(', ')}`);
+  console.log(`Packed pass ${pass} for ${models.length} models: ${written.join(', ')}`);
 }
 
 async function score() {
   const runs = await loadRuns();
   const files = await readdir(JUDGE);
   const rows = [];
-  const pattern = new RegExp(`^pass\\d+${variant ? `-${variant}` : ''}-(replies|tasks|conversations)\\.json$`);
+  const pattern = new RegExp(`^pass\\d+${variant ? `-${variant}` : ''}-(${Object.keys(PARTS).join('|')})\\.json$`);
   for (const file of files.filter((name) => pattern.test(name))) {
     const pass = file.match(/^pass(\d+)/)[1];
     const key = JSON.parse(await readFile(path.join(JUDGE, `${prefix(pass)}-key.json`), 'utf8'));
@@ -147,7 +180,7 @@ async function score() {
     const mine = rows.filter((row) => row.model === model);
     const answers = runs[model].answers;
     const byCategory = {};
-    for (const category of data.categories.map((c) => c.id)) {
+    for (const category of data.categories.map((c) => c.id).filter((id) => answers.some((a) => a.category === id))) {
       const ids = new Set(answers.filter((a) => a.category === category).map((a) => a.id));
       const scored = mine.filter((row) => ids.has(row.item));
       byCategory[category] = {
@@ -183,11 +216,12 @@ async function score() {
   const pct = (x) => (Number.isFinite(x) ? `${Math.round(x * 100)}%` : '–');
   const f1 = (x) => (Number.isFinite(x) ? x.toFixed(1) : '–');
   console.log(`passes agree on usable for ${pct(agreement)} of answers; natural differs by ${f1(naturalGap)} on average\n`);
-  console.log('| モデル | 自然さ | 合い方 | そのまま使える | 少し直せば使える（以上） | 返信 | 会話 | 書き換え | 知識 | 事実（7 問） | 機械的な問題 | 速さ（CPU） |');
-  console.log('| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |');
+  const categories = Object.keys(COLUMNS).filter((id) => Object.values(summary).some((s) => s.byCategory[id]));
+  console.log(`| モデル | 自然さ | 合い方 | そのまま使える | 少し直せば使える（以上） | ${categories.map((id) => COLUMNS[id]).join(' | ')} | 事実（7 問） | 機械的な問題 | 速さ（CPU） |`);
+  console.log(`| --- | ---: | ---: | ---: | ---: | ${categories.map(() => '---:').join(' | ')} | ---: | ---: | ---: |`);
   for (const [model, s] of Object.entries(summary).sort((a, b) => b[1].usableYes - a[1].usableYes)) {
-    const cat = (id) => pct(s.byCategory[id].usableYes);
-    console.log(`| ${s.name} | ${f1(s.natural)} | ${f1(s.fit)} | ${pct(s.usableYes)} | ${pct(s.usableAtLeastEdit)} | ${cat('reply')} | ${cat('conversation')} | ${cat('rewrite')} | ${cat('knowledge')} | ${s.factsRight}/7 | ${s.flagged.length} | ${f1(s.decodePerSecond)} トークン/秒 |`);
+    const cat = (id) => pct(s.byCategory[id]?.usableYes);
+    console.log(`| ${s.name} | ${f1(s.natural)} | ${f1(s.fit)} | ${pct(s.usableYes)} | ${pct(s.usableAtLeastEdit)} | ${categories.map(cat).join(' | ')} | ${s.factsRight}/7 | ${s.flagged.length} | ${f1(s.decodePerSecond)} トークン/秒 |`);
   }
 }
 
