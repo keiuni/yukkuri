@@ -23,6 +23,7 @@
     "failure-probes": "node scripts/failure-probes.mjs",
     "long-text": "node scripts/long-text.mjs",
     "download-chat-models": "node scripts/download-chat-models.mjs",
+    "bot-chat": "node scripts/bot-chat.mjs",
     "ja-chat": "node scripts/ja-chat.mjs"
   },
   "devDependencies": {
