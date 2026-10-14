@@ -372,6 +372,29 @@ npm run ja-chat -- --short gemma4-e4b-litert                           # 前回�
 node scripts/ja-chat-judge.mjs pack 4 --tag phone --runs gemma4-e4b-short,gemma4-e4b-litert-short   # 名前を伏せた比較
 ```
 
+## メモ・予定・ToDo の仕分け（EmbeddingGemma 初代）
+
+結果は [docs/note-intents-2026-10-14.md](docs/note-intents-2026-10-14.md) にまとめました。
+文を「予定／ToDo／メモ」に仕分け、予定なら日付と時刻を読み取れるかを調べました。
+
+- **仕分け**: 72 文で 93.1%（例文 5 つ + 説明文）。予定の取りこぼしは 0 で、間違いはメモ（日付つき）を予定と取り違えたものでした。
+- **迷ったら聞く**: 1 位と 2 位の差が 0.05 未満のときだけ利用者に聞くと、85% を自動で振り分けて全部正解でした。
+- **日付と時刻**: モデルではなくルール（[public/lib/note-intent.js](public/lib/note-intent.js)）で読みます。別の言い回し 18 文は、最初 15 文で、外れた 3 文はルールを足しました。
+
+```bash
+npm run note-intents -- --model v1 --dtype q8,fp32
+```
+
+## 小さなモデル同士の会話（bot の頭脳にできるか）
+
+結果は [docs/bot-chat-2026-10-14.md](docs/bot-chat-2026-10-14.md) にまとめました。
+Gemma 4 E2B / E4B のスマホ版で 2 体の bot に 30 往復話させると、目的を果たしたあとも別れのあいさつが 40〜50 発言続きました。
+会話を止めるのは、モデルではなくコードの仕事です。
+
+```bash
+npm run bot-chat -- gemma4-e2b-litert       # 3 場面 × 30 往復
+```
+
 ## 構成
 
 ```
@@ -387,6 +410,12 @@ public/data/failure-probes.json  失敗パターン別の問題集（16 種類�
 public/lib/probe-metrics.js 問題集の採点（違いを無視した組、AUC、振り分け、文字の重なり）
 public/data/ja-chat.json, ja-facts.json  日本語の返信・会話の問題と、事実の問題
 public/data/ja-talk.json    4〜5 往復の会話 10 本（雑談・相談・方言・なりきり・途中で話が変わっても覚えているか）
+public/data/bot-scenes.json  bot 同士の会話の 3 場面（友だち・パン屋・村の取引）
+public/data/note-intents.json  メモ・予定・ToDo の例文と評価用の文、日付と時刻の期待値
+public/lib/bot-metrics.js   bot 同士の会話の機械的な数え上げ（繰り返し・ラベル・別れのあいさつ・行動の形式）
+public/lib/note-intent.js   文の仕分け（平均ベクトル・近い例文・余白）と、日付と時刻を読むルール
+scripts/bot-chat.mjs        2 体の bot に 30 往復話させる
+scripts/note-intents.mjs    EmbeddingGemma でメモ・予定・ToDo を仕分ける
 public/lib/ja-checks.js     日本語の回答の機械的なチェック（他の言語の混入、繰り返し、字数・箇条書き、必要な語）
 scripts/download-model.mjs  モデルのダウンロード
 scripts/make-report.mjs     E2E 結果の集計

@@ -1,0 +1,530 @@
+{
+  "name": "Notes, schedule entries and to-dos",
+  "version": 1,
+  "description": "Short Japanese sentences a person might type or say into a notes app: a schedule entry (予定), a to-do (ToDo) or a memo (メモ). `seeds` are the few examples a user could have given as samples; `test` is the held-out set, with the tricky ones marked (a memo that contains a date, a to-do with a deadline, a schedule without a clock time). `now` is the date the relative expressions are resolved against (a Wednesday). In `test`, schedule items carry the expected `date` / `time` / `endDate` / `allDay`, and to-dos with a deadline the expected `due`. Hand-written for this demo. `unseen` holds schedule sentences with other phrasings, written after the date rules, to see how far the rules reach beyond the test set (nothing was changed for them before the first run).",
+  "now": "2026-10-14",
+  "labels": [
+    {
+      "id": "schedule",
+      "name": "予定",
+      "description": "カレンダーに入れる予定。日時や場所が決まっている会合・約束・出来事"
+    },
+    {
+      "id": "todo",
+      "name": "ToDo",
+      "description": "やるべき作業。買い物、連絡、手続き、提出など、自分が行う行動"
+    },
+    {
+      "id": "memo",
+      "name": "メモ",
+      "description": "覚えておきたい情報。事実、アイデア、感想、番号、好みなど。日時の約束や作業ではない"
+    }
+  ],
+  "seeds": [
+    {
+      "label": "schedule",
+      "text": "来週の月曜日、14時から歯科検診"
+    },
+    {
+      "label": "schedule",
+      "text": "12月10日に同窓会、18時に東京駅"
+    },
+    {
+      "label": "schedule",
+      "text": "今度の土曜の夜は友だちと花火大会"
+    },
+    {
+      "label": "schedule",
+      "text": "明日の朝8時に空港へ、出張で福岡に出発"
+    },
+    {
+      "label": "schedule",
+      "text": "水曜の12時にランチの約束"
+    },
+    {
+      "label": "todo",
+      "text": "明日までにレポートを提出する"
+    },
+    {
+      "label": "todo",
+      "text": "トイレットペーパーを買う"
+    },
+    {
+      "label": "todo",
+      "text": "友だちに誕生日のお祝いを送る"
+    },
+    {
+      "label": "todo",
+      "text": "病院に電話して予約を変更する"
+    },
+    {
+      "label": "todo",
+      "text": "書類にハンコを押して返送する"
+    },
+    {
+      "label": "memo",
+      "text": "鈴木さんは猫を飼っていて、名前はミケ"
+    },
+    {
+      "label": "memo",
+      "text": "冷蔵庫の中のプリンは姉のもの"
+    },
+    {
+      "label": "memo",
+      "text": "おすすめのラーメン屋は駅裏の「麺屋ひかり」"
+    },
+    {
+      "label": "memo",
+      "text": "プレゼンのコツは結論から話すこと"
+    },
+    {
+      "label": "memo",
+      "text": "自転車の鍵の番号は4桁で、誕生日と同じ"
+    }
+  ],
+  "test": [
+    {
+      "label": "schedule",
+      "text": "明日の15時から渋谷で田中さんと打ち合わせ",
+      "date": "2026-10-15",
+      "time": "15:00"
+    },
+    {
+      "label": "schedule",
+      "text": "来週の火曜日、10時に歯医者の予約",
+      "date": "2026-10-20",
+      "time": "10:00"
+    },
+    {
+      "label": "schedule",
+      "text": "10月20日は母の誕生日ディナー、19時に銀座",
+      "date": "2026-10-20",
+      "time": "19:00"
+    },
+    {
+      "label": "schedule",
+      "text": "金曜の夜は会社の飲み会、18時半に新宿集合",
+      "date": "2026-10-16",
+      "time": "18:30"
+    },
+    {
+      "label": "schedule",
+      "text": "再来週の月曜から3日間、大阪に出張",
+      "date": "2026-10-26",
+      "endDate": "2026-10-28",
+      "allDay": true
+    },
+    {
+      "label": "schedule",
+      "text": "今度の日曜、午前中に子どもの運動会",
+      "date": "2026-10-18",
+      "time": null
+    },
+    {
+      "label": "schedule",
+      "text": "12月24日の夜に友だちとクリスマスパーティー",
+      "date": "2026-12-24",
+      "time": null
+    },
+    {
+      "label": "schedule",
+      "text": "明後日の朝9時にオンライン面接",
+      "date": "2026-10-16",
+      "time": "09:00"
+    },
+    {
+      "label": "schedule",
+      "text": "来月の5日に健康診断、8時半に病院",
+      "date": "2026-11-05",
+      "time": "08:30"
+    },
+    {
+      "label": "schedule",
+      "text": "土曜の13時から美容院を予約してある",
+      "date": "2026-10-17",
+      "time": "13:00"
+    },
+    {
+      "label": "schedule",
+      "text": "木曜午後2時、チームの定例会議",
+      "date": "2026-10-15",
+      "time": "14:00"
+    },
+    {
+      "label": "schedule",
+      "text": "11月3日から5日まで京都旅行",
+      "date": "2026-11-03",
+      "endDate": "2026-11-05",
+      "allDay": true
+    },
+    {
+      "label": "schedule",
+      "text": "今夜7時に彼女と映画を観に行く",
+      "date": "2026-10-14",
+      "time": "19:00"
+    },
+    {
+      "label": "schedule",
+      "text": "来週木曜は終日、研修で大阪",
+      "date": "2026-10-22",
+      "allDay": true
+    },
+    {
+      "label": "schedule",
+      "text": "明日の昼12時に同期とランチ",
+      "date": "2026-10-15",
+      "time": "12:00"
+    },
+    {
+      "label": "schedule",
+      "text": "月末の31日に引っ越し業者が来る、午前10時",
+      "date": "2026-10-31",
+      "time": "10:00"
+    },
+    {
+      "label": "schedule",
+      "text": "15日の夕方6時に結婚式の二次会",
+      "date": "2026-10-15",
+      "time": "18:00"
+    },
+    {
+      "label": "schedule",
+      "text": "次の日曜日の朝7時にゴルフ",
+      "date": "2026-10-18",
+      "time": "07:00"
+    },
+    {
+      "label": "schedule",
+      "text": "来週の水曜日は午後から休みを取って役所へ行く",
+      "date": "2026-10-21",
+      "time": null
+    },
+    {
+      "label": "schedule",
+      "text": "12月1日 13:30 歯のクリーニング",
+      "date": "2026-12-01",
+      "time": "13:30"
+    },
+    {
+      "label": "schedule",
+      "text": "今週の土曜、夜8時から友人の家で鍋パーティー",
+      "date": "2026-10-17",
+      "time": "20:00"
+    },
+    {
+      "label": "schedule",
+      "text": "3日後の朝10時に車の点検",
+      "date": "2026-10-17",
+      "time": "10:00"
+    },
+    {
+      "label": "schedule",
+      "text": "明日はお昼に取引先とランチミーティング",
+      "date": "2026-10-15",
+      "time": null
+    },
+    {
+      "label": "schedule",
+      "text": "来週の金曜、17時に保育園のお迎え",
+      "date": "2026-10-23",
+      "time": "17:00"
+    },
+    {
+      "label": "todo",
+      "text": "金曜までに請求書を送る",
+      "due": "2026-10-16",
+      "hard": "deadline"
+    },
+    {
+      "label": "todo",
+      "text": "牛乳と卵を買って帰る"
+    },
+    {
+      "label": "todo",
+      "text": "週末に部屋の掃除をする",
+      "hard": "deadline"
+    },
+    {
+      "label": "todo",
+      "text": "携帯料金の支払いを忘れずに"
+    },
+    {
+      "label": "todo",
+      "text": "母に電話する"
+    },
+    {
+      "label": "todo",
+      "text": "今日中に出張の報告書を提出する",
+      "due": "2026-10-14",
+      "hard": "deadline"
+    },
+    {
+      "label": "todo",
+      "text": "歯医者の予約を取る"
+    },
+    {
+      "label": "todo",
+      "text": "クリーニングを受け取りに行く"
+    },
+    {
+      "label": "todo",
+      "text": "年賀状を書く"
+    },
+    {
+      "label": "todo",
+      "text": "パスポートの更新手続きをする"
+    },
+    {
+      "label": "todo",
+      "text": "洗濯物を取り込む"
+    },
+    {
+      "label": "todo",
+      "text": "来週までに企画書を仕上げる",
+      "hard": "deadline"
+    },
+    {
+      "label": "todo",
+      "text": "郵便局で荷物を出す"
+    },
+    {
+      "label": "todo",
+      "text": "上司にメールの返信をする"
+    },
+    {
+      "label": "todo",
+      "text": "電球を買い替える"
+    },
+    {
+      "label": "todo",
+      "text": "確定申告の書類を準備する"
+    },
+    {
+      "label": "todo",
+      "text": "燃えるゴミを出す"
+    },
+    {
+      "label": "todo",
+      "text": "車検の見積もりを取る"
+    },
+    {
+      "label": "todo",
+      "text": "本を図書館に返す"
+    },
+    {
+      "label": "todo",
+      "text": "部長に資料のチェックをお願いする"
+    },
+    {
+      "label": "todo",
+      "text": "誕生日プレゼントを選ぶ"
+    },
+    {
+      "label": "todo",
+      "text": "家賃を振り込む"
+    },
+    {
+      "label": "todo",
+      "text": "木曜までにアンケートに回答する",
+      "due": "2026-10-15",
+      "hard": "deadline"
+    },
+    {
+      "label": "todo",
+      "text": "靴を修理に出す"
+    },
+    {
+      "label": "memo",
+      "text": "会社のWi-Fiのパスワードが変わった、新しいのは受付の掲示にある"
+    },
+    {
+      "label": "memo",
+      "text": "母は甲殻類アレルギーなので、お土産の海鮮に注意"
+    },
+    {
+      "label": "memo",
+      "text": "田中さんは辛い食べ物が苦手"
+    },
+    {
+      "label": "memo",
+      "text": "カレーのコツ：玉ねぎは飴色になるまで炒める"
+    },
+    {
+      "label": "memo",
+      "text": "ブログ記事のアイデア：スマホで動くAIの比較"
+    },
+    {
+      "label": "memo",
+      "text": "新しいカフェ「ミモザ」、コーヒーが美味しかった、また行きたい"
+    },
+    {
+      "label": "memo",
+      "text": "駐車場は地下2階のB-47"
+    },
+    {
+      "label": "memo",
+      "text": "会議の結論：来期の予算は据え置きで決定",
+      "hard": "date-like"
+    },
+    {
+      "label": "memo",
+      "text": "読みたい本：『人を動かす』と『嫌われる勇気』"
+    },
+    {
+      "label": "memo",
+      "text": "妻の靴のサイズは24.5センチ"
+    },
+    {
+      "label": "memo",
+      "text": "洗濯機の型番はNA-FA80H"
+    },
+    {
+      "label": "memo",
+      "text": "山田部長はコーヒーに砂糖を入れない"
+    },
+    {
+      "label": "memo",
+      "text": "引っ越し先の候補：中野、荻窪、吉祥寺"
+    },
+    {
+      "label": "memo",
+      "text": "今日の勉強メモ：英語の過去完了は had + 過去分詞",
+      "hard": "date-like"
+    },
+    {
+      "label": "memo",
+      "text": "友だちおすすめの映画：『ハチ公物語』"
+    },
+    {
+      "label": "memo",
+      "text": "実家の鍵は玄関横の植木鉢の下にある"
+    },
+    {
+      "label": "memo",
+      "text": "子どもの身長が110センチになった"
+    },
+    {
+      "label": "memo",
+      "text": "来年の目標は毎日30分歩くこと",
+      "hard": "date-like"
+    },
+    {
+      "label": "memo",
+      "text": "この店のラーメンは醤油が一番おいしい"
+    },
+    {
+      "label": "memo",
+      "text": "母の誕生日は3月5日（毎年忘れる）",
+      "hard": "date-like"
+    },
+    {
+      "label": "memo",
+      "text": "田中さんの電話番号は090-1234-5678"
+    },
+    {
+      "label": "memo",
+      "text": "温泉旅行のプラン案：1日目は箱根、2日目は熱海"
+    },
+    {
+      "label": "memo",
+      "text": "ジムの会員番号は20481"
+    },
+    {
+      "label": "memo",
+      "text": "先月の電気代は6,820円だった",
+      "hard": "date-like"
+    }
+  ],
+  "unseen": [
+    {
+      "text": "あさっての午後3時にカフェで打ち合わせ",
+      "date": "2026-10-16",
+      "time": "15:00"
+    },
+    {
+      "text": "来週の月曜、朝イチで出張",
+      "date": "2026-10-19",
+      "time": null
+    },
+    {
+      "text": "15日(木)の19時から飲み会",
+      "date": "2026-10-15",
+      "time": "19:00"
+    },
+    {
+      "text": "11/20 18:00 同窓会",
+      "date": "2026-11-20",
+      "time": "18:00"
+    },
+    {
+      "text": "今日の夕方5時半に歯医者",
+      "date": "2026-10-14",
+      "time": "17:30"
+    },
+    {
+      "text": "月曜の10:30からオンライン研修",
+      "date": "2026-10-19",
+      "time": "10:30"
+    },
+    {
+      "text": "10月28日 午後1時 面談",
+      "date": "2026-10-28",
+      "time": "13:00"
+    },
+    {
+      "text": "明日の朝、7時15分に起きて空港へ",
+      "date": "2026-10-15",
+      "time": "07:15"
+    },
+    {
+      "text": "今週の金曜日の午後7時半からディナー",
+      "date": "2026-10-16",
+      "time": "19:30"
+    },
+    {
+      "text": "再来週の木曜、14時にプレゼン",
+      "date": "2026-10-29",
+      "time": "14:00"
+    },
+    {
+      "text": "12月31日の23時に年越しライブ",
+      "date": "2026-12-31",
+      "time": "23:00"
+    },
+    {
+      "text": "2027年1月10日の10時に新年会",
+      "date": "2027-01-10",
+      "time": "10:00"
+    },
+    {
+      "text": "4日後の夜9時に電話会議",
+      "date": "2026-10-18",
+      "time": "21:00"
+    },
+    {
+      "text": "来月の第2土曜日に町内会の清掃",
+      "date": "2026-11-14",
+      "time": null
+    },
+    {
+      "text": "明日の正午に駅前で待ち合わせ",
+      "date": "2026-10-15",
+      "time": "12:00"
+    },
+    {
+      "text": "9時に出発、来週の月曜日",
+      "date": "2026-10-19",
+      "time": "09:00"
+    },
+    {
+      "text": "今夜は9時から家族で食事",
+      "date": "2026-10-14",
+      "time": "21:00"
+    },
+    {
+      "text": "来週の火曜と木曜の夜に英会話",
+      "date": "2026-10-20",
+      "time": null
+    }
+  ]
+}
